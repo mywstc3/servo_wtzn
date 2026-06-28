@@ -1,0 +1,48 @@
+If:
+  PathMatch: GD32F130例程共32个/gpio_output/gpio_output/.*
+CompileFlags:
+  Add:
+    - -DUSE_STDPERIPH_DRIVER
+    - -DGD32F130_150
+    - -D__ARMCC_VERSION=6010050
+    - -Ie:/wtzn/servo/GD32F130例程共32个/gpio_output/gpio_output/CMSIS
+    - -Ie:/wtzn/servo/GD32F130例程共32个/gpio_output/gpio_output/Library/Include
+    - -Ie:/wtzn/servo/GD32F130例程共32个/gpio_output/gpio_output/User
+    - --target=arm-none-eabi
+    - -mcpu=cortex-m3
+    - -mthumb
+---
+If:
+  PathMatch: servo_project/.*
+CompileFlags:
+  Add:
+    - -DUSE_STDPERIPH_DRIVER
+    - -DGD32F130_150
+    - -D__ARMCC_VERSION=6010050
+    - -Ie:/wtzn/servo/servo_project/CMSIS
+    - -Ie:/wtzn/servo/servo_project/Library/Include
+    - -Ie:/wtzn/servo/servo_project/User
+    - --target=arm-none-eabi
+    - -mcpu=cortex-m3
+    - -mthumb
+---
+If:
+  PathMatch: GD32F130例程共32个/gpio_output/gpio_output/CMSIS/.*
+CompileFlags:
+  Add:
+    - -include
+    - gd32f1x0.h
+---
+If:
+  PathMatch: servo_project/CMSIS/.*
+CompileFlags:
+  Add:
+    - -include
+    - gd32f1x0.h
+---
+If:
+  PathMatch: (servo_project/CMSIS/.*|servo_project/Library/.*|servo_project/User/.*|GD32F130例程共32个/gpio_output/gpio_output/CMSIS/.*|GD32F130例程共32个/gpio_output/gpio_output/Library/.*|GD32F130例程共32个/gpio_output/gpio_output/User/.*)
+Diagnostics:
+  Suppress:
+    - unused-includes
+    - missing-includes

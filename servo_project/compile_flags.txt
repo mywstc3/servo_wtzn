@@ -1,0 +1,9 @@
+-DUSE_STDPERIPH_DRIVER
+-DGD32F130_150
+-D__ARMCC_VERSION=6010050
+-ICMSIS
+-ILibrary/Include
+-IUser
+--target=arm-none-eabi
+-mcpu=cortex-m3
+-mthumb

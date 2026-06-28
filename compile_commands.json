@@ -1,0 +1,47 @@
+[
+    {
+        "directory": "e:/wtzn/servo/GD32F130例程共32个/gpio_output/gpio_output",
+        "file": "e:/wtzn/servo/GD32F130例程共32个/gpio_output/gpio_output/User/as5600.c",
+        "command": "clang -DUSE_STDPERIPH_DRIVER -DGD32F130_150 -D__ARMCC_VERSION=6010050 -ICMSIS -ILibrary/Include -IUser --target=arm-none-eabi -mcpu=cortex-m3 -mthumb -c User/as5600.c"
+    },
+    {
+        "directory": "e:/wtzn/servo/GD32F130例程共32个/gpio_output/gpio_output",
+        "file": "e:/wtzn/servo/GD32F130例程共32个/gpio_output/gpio_output/User/main.c",
+        "command": "clang -DUSE_STDPERIPH_DRIVER -DGD32F130_150 -D__ARMCC_VERSION=6010050 -ICMSIS -ILibrary/Include -IUser --target=arm-none-eabi -mcpu=cortex-m3 -mthumb -c User/main.c"
+    },
+    {
+        "directory": "e:/wtzn/servo/GD32F130例程共32个/gpio_output/gpio_output",
+        "file": "e:/wtzn/servo/GD32F130例程共32个/gpio_output/gpio_output/User/motor.c",
+        "command": "clang -DUSE_STDPERIPH_DRIVER -DGD32F130_150 -D__ARMCC_VERSION=6010050 -ICMSIS -ILibrary/Include -IUser --target=arm-none-eabi -mcpu=cortex-m3 -mthumb -c User/motor.c"
+    },
+    {
+        "directory": "e:/wtzn/servo/GD32F130例程共32个/gpio_output/gpio_output",
+        "file": "e:/wtzn/servo/GD32F130例程共32个/gpio_output/gpio_output/User/pid.c",
+        "command": "clang -DUSE_STDPERIPH_DRIVER -DGD32F130_150 -D__ARMCC_VERSION=6010050 -ICMSIS -ILibrary/Include -IUser --target=arm-none-eabi -mcpu=cortex-m3 -mthumb -c User/pid.c"
+    },
+    {
+        "directory": "e:/wtzn/servo/GD32F130例程共32个/gpio_output/gpio_output",
+        "file": "e:/wtzn/servo/GD32F130例程共32个/gpio_output/gpio_output/User/gd32f1x0_it.c",
+        "command": "clang -DUSE_STDPERIPH_DRIVER -DGD32F130_150 -D__ARMCC_VERSION=6010050 -ICMSIS -ILibrary/Include -IUser --target=arm-none-eabi -mcpu=cortex-m3 -mthumb -c User/gd32f1x0_it.c"
+    },
+    {
+        "directory": "e:/wtzn/servo/GD32F130例程共32个/gpio_output/gpio_output",
+        "file": "e:/wtzn/servo/GD32F130例程共32个/gpio_output/gpio_output/User/systick.c",
+        "command": "clang -DUSE_STDPERIPH_DRIVER -DGD32F130_150 -D__ARMCC_VERSION=6010050 -ICMSIS -ILibrary/Include -IUser --target=arm-none-eabi -mcpu=cortex-m3 -mthumb -c User/systick.c"
+    },
+    {
+        "directory": "e:/wtzn/servo/servo_project",
+        "file": "e:/wtzn/servo/servo_project/User/main.c",
+        "command": "clang -DUSE_STDPERIPH_DRIVER -DGD32F130_150 -D__ARMCC_VERSION=6010050 -ICMSIS -ILibrary/Include -IUser --target=arm-none-eabi -mcpu=cortex-m3 -mthumb -c User/main.c"
+    },
+    {
+        "directory": "e:/wtzn/servo/servo_project",
+        "file": "e:/wtzn/servo/servo_project/User/gd32f1x0_it.c",
+        "command": "clang -DUSE_STDPERIPH_DRIVER -DGD32F130_150 -D__ARMCC_VERSION=6010050 -ICMSIS -ILibrary/Include -IUser --target=arm-none-eabi -mcpu=cortex-m3 -mthumb -c User/gd32f1x0_it.c"
+    },
+    {
+        "directory": "e:/wtzn/servo/servo_project",
+        "file": "e:/wtzn/servo/servo_project/User/systick.c",
+        "command": "clang -DUSE_STDPERIPH_DRIVER -DGD32F130_150 -D__ARMCC_VERSION=6010050 -ICMSIS -ILibrary/Include -IUser --target=arm-none-eabi -mcpu=cortex-m3 -mthumb -c User/systick.c"
+    }
+]

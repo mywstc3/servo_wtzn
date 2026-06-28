@@ -1,0 +1,37 @@
+{
+    "configurations": [
+        {
+            "name": "GD32F130 gpio_output",
+            "includePath": [
+                "${workspaceFolder}/GD32F130例程共32个/gpio_output/gpio_output/CMSIS",
+                "${workspaceFolder}/GD32F130例程共32个/gpio_output/gpio_output/Library/Include",
+                "${workspaceFolder}/GD32F130例程共32个/gpio_output/gpio_output/User"
+            ],
+            "defines": [
+                "USE_STDPERIPH_DRIVER",
+                "GD32F130_150",
+                "__ARMCC_VERSION=6010050"
+            ],
+            "compilerPath": "",
+            "cStandard": "c99",
+            "intelliSenseMode": "gcc-arm"
+        },
+        {
+            "name": "GD32F130 servo_project",
+            "includePath": [
+                "${workspaceFolder}/servo_project/CMSIS",
+                "${workspaceFolder}/servo_project/Library/Include",
+                "${workspaceFolder}/servo_project/User"
+            ],
+            "defines": [
+                "USE_STDPERIPH_DRIVER",
+                "GD32F130_150",
+                "__ARMCC_VERSION=6010050"
+            ],
+            "compilerPath": "",
+            "cStandard": "c99",
+            "intelliSenseMode": "gcc-arm"
+        }
+    ],
+    "version": 4
+}
