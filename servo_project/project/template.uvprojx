@@ -675,6 +675,66 @@
               <FileType>5</FileType>
               <FilePath>..\User\servo\uart.h</FilePath>
             </File>
+            <File>
+              <FileName>data_send.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\servo\data_send.c</FilePath>
+            </File>
+            <File>
+              <FileName>data_send.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\User\servo\data_send.h</FilePath>
+            </File>
+            <File>
+              <FileName>electricity.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\servo\electricity.c</FilePath>
+            </File>
+            <File>
+              <FileName>electricity.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\User\servo\electricity.h</FilePath>
+            </File>
+            <File>
+              <FileName>servo_config.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\servo\servo_config.c</FilePath>
+            </File>
+            <File>
+              <FileName>servo_config.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\User\servo\servo_config.h</FilePath>
+            </File>
+            <File>
+              <FileName>encoder.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\servo\encoder.c</FilePath>
+            </File>
+            <File>
+              <FileName>encoder.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\User\servo\encoder.h</FilePath>
+            </File>
+            <File>
+              <FileName>speed.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\servo\speed.c</FilePath>
+            </File>
+            <File>
+              <FileName>speed.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\User\servo\speed.h</FilePath>
+            </File>
+            <File>
+              <FileName>motor_test.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\servo\motor_test.c</FilePath>
+            </File>
+            <File>
+              <FileName>motor_test.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\User\servo\motor_test.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

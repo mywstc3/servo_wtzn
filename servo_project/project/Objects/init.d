@@ -14,5 +14,6 @@
   ..\Library\Include\gd32f1x0_usart.h \
   ..\Library\Include\gd32f1x0_wwdgt.h ..\Library\Include\gd32f1x0_misc.h \
   ..\Library\Include\gd32f1x0_tsi.h ..\User\bsp\bsp_adc.h \
-  ..\User\bsp\bsp_pwm.h ..\User\bsp\bsp_dma.h ..\User\servo\motor.h \
-  ..\User\systick.h
+  ..\User\servo\motor.h ..\User\servo\servo_config.h ..\User\systick.h \
+  ..\User\servo\encoder.h ..\User\servo\time.h ..\User\servo\uart.h \
+  ..\User\servo\motor_test.h

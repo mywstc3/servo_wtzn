@@ -4,6 +4,10 @@
 #include "stdbool.h"
 #include "stdint.h"
 
+#define POS_PLAN_DEADZONE_DEG   1.0f    /* 停止轨迹规划，进入位置环精调 (°) */
+#define POS_STOP_HYSTERESIS_DEG 0.25f    /* 退出精调区滞回 (°) */
+#define POS_TRIM_SPEED_MAX      60.0f   /* 精调区位置 PD 最大速度输出 (°/s) */
+
 typedef struct
 {
     float kp;
@@ -18,6 +22,9 @@ typedef struct
     float output;
     float delta_output;
     float last_output;
+    float input_max;      /* 目标输入绝对值上限，0=不限制 */
+    float integral_max;   /* 积分项绝对值上限，0=不限制 */
+    float output_max;     /* 输出绝对值上限，0=不限制 */
 } pid_t;
 
 typedef struct
@@ -33,23 +40,27 @@ typedef struct
     bool motor_start_flag;
     bool motor_uart_flag;
     bool motor_speed_flag;
-    bool motor_location_flag;
+    bool motor_speed_pid_flag;
+    bool motor_location_pid_flag;
     bool motor_adc_flag;
     bool motor_encoder_flag;
-    bool motor_current_flag;
-    bool motor_voltage_flag;
 }flag_t;
 
 typedef struct
 {
     float motor_adc_i_raw;
     float motor_adc_v_raw;
+    float motor_adc_i_bus;
+    float motor_adc_v_bus;
+    float motor_adc_i_bus_offset;
+    float motor_adc_v_bus_offset;
     float motor_encoder_raw;
     float motor_encoder_radian;
     float motor_encoder_degree;
     float start_angle_radian;
     float angle_radian_diff;
     float motor_angle_multi_degree;
+    float motor_speed_raw;
     float motor_speed_degree;
     float motor_speed_radian;
 } sensor_data_t;
@@ -65,6 +76,7 @@ typedef enum
 typedef struct
 {
     motor_control_mode_t mode;
+    float target_duty;
     float target_angle;
     float target_speed;
     float target_a_speed;

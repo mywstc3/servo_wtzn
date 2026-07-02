@@ -1,18 +1,42 @@
 #include "electricity.h"
-#include "bsp/bsp_adc.h"
+#include "bsp/bsp_dma.h"
+#include "servo_config.h"
+#include "motor.h"
 
-extern uint16_t adc_dma_buf[ADC_DMA_BUF_LEN];
-void ADC_CMP_IRQHandler(void)
+void electricity_update(void)
 {
-    if (RESET != adc_interrupt_flag_get(ADC_INT_FLAG_EOC)) {
-        adc_interrupt_flag_clear(ADC_INT_FLAG_EOC);
+    uint16_t i_raw;
+    uint16_t v_raw;
+    float v_pa3;
+    float i_mag;
 
-        uint16_t i_raw = adc_dma_buf[0];   /* CH3 电流 */
-        uint16_t v_raw = adc_dma_buf[1];   /* CH4 电压 */
+    __disable_irq();
+    i_raw = adc_dma_buf[0];
+    v_raw = adc_dma_buf[1];
+    __enable_irq();
 
-        /* 1. raw → i_bus / v_bus（标定公式见 M-02 笔记） */
-        /* 2. 电流环 PI：i_target → duty */
-        /* 3. motor_set_duty(duty) 或写 TIMER2 CCR（§4.10 影子） */
-        /* 4. 可选：过流/欠压判断 → motor_disable() */
+    v_pa3 = (float)i_raw * ADC_VREF_V / ADC_FULL_SCALE;
+    motor_context.sensor.motor_adc_i_raw = v_pa3;
+    motor_context.sensor.motor_adc_v_raw =
+        (float)v_raw * ADC_VREF_V / ADC_FULL_SCALE;
+
+    i_mag = (v_pa3 - motor_context.sensor.motor_adc_i_bus_offset)
+            / (ADC_CURRENT_GAIN * ADC_CURRENT_R_SHUNT_OHM);
+    if (i_mag < 0.0f) {
+        i_mag = 0.0f;
     }
+
+    {
+        int16_t duty = motor_get_duty();
+        if (duty > 0) {
+            motor_context.sensor.motor_adc_i_bus = i_mag;
+        } else if (duty < 0) {
+            motor_context.sensor.motor_adc_i_bus = -i_mag;
+        } else {
+            motor_context.sensor.motor_adc_i_bus = 0.0f;
+        }
+    }
+
+    motor_context.sensor.motor_adc_v_bus =
+        motor_context.sensor.motor_adc_v_raw * 11.5f / 1.5f;
 }

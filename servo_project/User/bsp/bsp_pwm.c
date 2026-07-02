@@ -1,5 +1,8 @@
 #include "bsp_pwm.h"
 
+#define MOTOR_PWM_PERIOD    3599U
+#define MOTOR_PWM_IDLE_CCR  1U
+
 void pwm_init(void)
 {
     rcu_periph_clock_enable(RCU_GPIOA);
@@ -19,9 +22,9 @@ void pwm_init(void)
     timer_deinit(TIMER2);
     timer_struct_para_init(&timer_initpara);
     timer_initpara.prescaler         = 0U;
-    timer_initpara.alignedmode       = TIMER_COUNTER_CENTER_DOWN;   /* §4.10：中心对齐 */
+    timer_initpara.alignedmode       = TIMER_COUNTER_EDGE;
     timer_initpara.counterdirection  = TIMER_COUNTER_UP;
-    timer_initpara.period            = 1799U;
+    timer_initpara.period            = MOTOR_PWM_PERIOD;
     timer_initpara.clockdivision     = TIMER_CKDIV_DIV1;
     timer_initpara.repetitioncounter = 0U;
     timer_init(TIMER2, &timer_initpara);
@@ -38,21 +41,14 @@ void pwm_init(void)
     timer_channel_output_config(TIMER2, TIMER_CH_3, &timer_ocinitpara);
     timer_channel_output_mode_config(TIMER2, TIMER_CH_1, TIMER_OC_MODE_PWM0);
     timer_channel_output_mode_config(TIMER2, TIMER_CH_3, TIMER_OC_MODE_PWM0);
-
-    /* TRGO → ADC；CCR/ARR 影子 → ISR 写 duty 下一周期生效 */
-    timer_master_output_trigger_source_select(TIMER2, TIMER_TRI_OUT_SRC_UPDATE);
-    timer_auto_reload_shadow_enable(TIMER2);
-    timer_channel_output_shadow_config(TIMER2, TIMER_CH_1, TIMER_OC_SHADOW_ENABLE);
-    timer_channel_output_shadow_config(TIMER2, TIMER_CH_3, TIMER_OC_SHADOW_ENABLE);
+    timer_channel_output_shadow_config(TIMER2, TIMER_CH_1, TIMER_OC_SHADOW_DISABLE);
+    timer_channel_output_shadow_config(TIMER2, TIMER_CH_3, TIMER_OC_SHADOW_DISABLE);
 
     timer_channel_output_pulse_value_config(TIMER2, TIMER_CH_1, 0U);
     timer_channel_output_pulse_value_config(TIMER2, TIMER_CH_3, 0U);
 
-    /* 不在此处 timer_enable：等 adc_init + DMA_init 完成后再 pwm_start() */
-}
-
-void pwm_start(void)
-{
+    /* PWM 周期 UPDATE 触发 ADC 扫描（见 bsp_adc.c / §7.12） */
+    timer_master_output_trigger_source_select(TIMER2, TIMER_TRI_OUT_SRC_UPDATE);
     timer_enable(TIMER2);
 }
 
@@ -60,20 +56,20 @@ void pwm_set_duty(int16_t duty)
 {
     uint16_t magnitude;
 
-    if (duty > (int16_t)1799U) {
-        duty = (int16_t)1799U;
-    } else if (duty < -(int16_t)1799U) {
-        duty = -(int16_t)1799U;
+    if (duty > (int16_t)MOTOR_PWM_PERIOD) {
+        duty = (int16_t)MOTOR_PWM_PERIOD;
+    } else if (duty < -(int16_t)MOTOR_PWM_PERIOD) {
+        duty = -(int16_t)MOTOR_PWM_PERIOD;
     }
 
     if (duty > 0) {
         magnitude = (uint16_t)duty;
-        timer_channel_output_pulse_value_config(TIMER2, TIMER_CH_1, magnitude);
-        timer_channel_output_pulse_value_config(TIMER2, TIMER_CH_3, 1U);
+        timer_channel_output_pulse_value_config(TIMER2, TIMER_CH_1, MOTOR_PWM_IDLE_CCR);
+        timer_channel_output_pulse_value_config(TIMER2, TIMER_CH_3, magnitude);
     } else if (duty < 0) {
         magnitude = (uint16_t)(-duty);
-        timer_channel_output_pulse_value_config(TIMER2, TIMER_CH_1, 1U);
-        timer_channel_output_pulse_value_config(TIMER2, TIMER_CH_3, magnitude);
+        timer_channel_output_pulse_value_config(TIMER2, TIMER_CH_1, magnitude);
+        timer_channel_output_pulse_value_config(TIMER2, TIMER_CH_3, MOTOR_PWM_IDLE_CCR);
     } else {
         timer_channel_output_pulse_value_config(TIMER2, TIMER_CH_1, 0U);
         timer_channel_output_pulse_value_config(TIMER2, TIMER_CH_3, 0U);

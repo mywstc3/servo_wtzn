@@ -1,11 +1,15 @@
 CompileFlags:
   Add:
+    - -std=c99
     - -DUSE_STDPERIPH_DRIVER
     - -DGD32F130_150
     - -D__ARMCC_VERSION=6010050
     - -Ie:/wtzn/servo/servo_project/CMSIS
     - -Ie:/wtzn/servo/servo_project/Library/Include
     - -Ie:/wtzn/servo/servo_project/User
+    - -Ie:/wtzn/servo/servo_project/User/bsp
+    - -isystemC:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/lib/gcc/arm-none-eabi/14.2.1/include
+    - -isystemC:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/arm-none-eabi/include
     - --target=arm-none-eabi
     - -mcpu=cortex-m3
     - -mthumb

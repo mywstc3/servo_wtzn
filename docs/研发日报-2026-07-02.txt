@@ -1,0 +1,51 @@
+研发团队工作日报
+
+日期：2026年7月2日（周四）
+项目：飞特 STS3215c018 舵机 / GD32F130 伺服固件
+
+一、昨日遗留工作闭环
+
+昨日（7/1）遗留 AS5600 实机烧录验收、I2C fail_stage 排查、速度观测器与 JustFloat 联调。今日编码器读角链路已可工作（VOFA+ 角度/多圈角有数据），运动控制侧转入位置环级联与轨迹规划开发；I2C stage 硬件级验收仍视实机情况抽查，无新增阻塞性遗留。
+
+二、今日完成工作
+
+1、motor_test 调试框架
+新增 motor_test.c/h，主循环 motor_test_poll() 周期刷新 motor_cmd（模式/波形/setpoint/motion_speed/motion_accel），Keil Watch 可在线改 setpoint 做位置/速度/力矩测试；上电 motor_cmd_init() 将 setpoint 同步为当前多圈角，避免 target_angle 被 0 覆盖。
+成果语雀链接：https://wit-motion.yuque.com/sd8v4v/project_doc/du8lqi1rknyewgxd
+
+2、位置模式级联 PID 架构
+实现「轨迹规划 → 速度环 → PWM」：粗定位 |误差|>1° 由 angle_control_plan 按 motion_speed/motion_accel 输出 plan_speed；精调区 |误差|≤1° 由 location_pid（PD）输出 plan_speed；速度环 speed_pid（PI，Ki=0.5）跟踪并输出占空比。位置环 Ki=0，带载持力交给速度环积分；精调区设 1° 入口 + 0.5° 滞回，避免边界抖切换。
+成果语雀链接：https://wit-motion.yuque.com/sd8v4v/project_doc/du8lqi1rknyewgxd
+
+3、angle_control_plan 轨迹规划迭代
+恢复并重写位置轨迹规划：采用 v_stop=sqrt(2·a·s) 可刹停速度上限，自动加减速；修复旧版仅加速不减速、5° 死区过大导致精度差等问题。servo_config.h 现 POS_PLAN_DEADZONE_DEG=1°、POS_TRIM_SPEED_MAX=60°/s；控制分频为位置环 250Hz、速度环 500Hz（time.h）。
+成果语雀链接：https://wit-motion.yuque.com/sd8v4v/project_doc/du8lqi1rknyewgxd
+
+4、位置环调试问题排查（软件层）
+排查并修复：location_pid 仅在死区内调用导致 error 恒为 0；motor_cmd_init 覆盖 target_angle；硬停 PWM=0 带载失力；位置 I 与速度 I 重复积分等。当前精调为 PD + 速度 PI 分工，实机精度与抖动仍待参数整定。
+成果语雀链接：https://wit-motion.yuque.com/sd8v4v/project_doc/du8lqi1rknyewgxd
+
+三、今日核心工作产出总结
+
+今日完成位置模式双环级联与轨迹规划联调框架，motor_test 支持 Watch 在线改目标，位置环改为 PD、持力由速度环 I 承担，为 M-05 位置控制实机整参打下基础。
+
+四、今日工作卡点 & 技术问题
+
+问题现象：精调区边界曾出现抖动；早期 5° 死区 + 位置 I 导致稳态精度不如纯位置 P 方案；带载停止需速度环积分持力，硬停会掉。
+已尝试解决方法：缩小死区至 1°、加滞回；去掉位置 I 与 location_pid_hold；停止区改 PD 精调 + 速度 PI 持力；重写 v_stop 规划算法。
+当前阻塞程度：软件架构已定型，待实机 Kp/Kd/Ki 整参与带载验收；未做最终精度量化测试。
+是否需要支援：暂不需要。
+
+五、需对外协同事项
+
+无
+
+六、明日工作计划
+
+1、（P1）按 docs/舵机STS自定义通信协议.docx 完成 STS 通信协议：帧格式 0xFF 0xFF + ID + Length + Instruction + Parameter + Checksum，校验和 Check Sum = ~(ID+Length+Instruction+Parameters) 取低 8 位。
+2、（P1）打通 C-01/C-02：uart_comm_rx_enable() 开启 PA2 半双工接收，uart_comm_poll() 实现组帧/解帧；先落地 PING(0x01)、READ(0x02)、WRITE(0x03) 三类指令及应答帧（含 ERROR 状态字节）。
+3、（P2）WRITE 与控制层对接：写控制表目标位置/速度等字段映射到 motor_context.control；PID 整参实机验收顺延。
+
+七、其他备注
+
+无

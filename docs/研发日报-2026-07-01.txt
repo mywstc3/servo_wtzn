@@ -1,0 +1,47 @@
+研发团队工作日报
+
+日期：2026年7月1日（周三）
+项目：飞特 STS3215c018 舵机 / GD32F130 伺服固件
+
+一、昨日遗留工作闭环
+
+昨日遗留 AS5600 角度 VOFA+ 恒为 0、I2C 读失败后采样停住、ADC 与 I2C 并发时序不清三项。今日已从调度层（TIMER13 flag）、驱动层（AERR/总线恢复）、主循环顺序三方面完成软件修复；实机 Rebuild 烧录与 VOFA+ 波形验收尚未完成，该事项顺延至明日，无其他遗留。
+
+二、今日完成工作
+
+1、AS5600 位置采样调度修复
+排查 VOFA+ 角度通道恒为 0，根因是 TIMER13 1kHz 控制环未按 ENCODER_UPDATE_HZ（100Hz）置位 motor_encoder_flag，主循环无法周期调用 encoder_update()。已在 time.c 补齐编码器/速度/位置 PID 分频 flag，encoder.c 改为 I2C 单次失败仅返回 0、不锁死后续采样，main.c 保持「先 ADC、后编码器」顺序。
+成果语雀链接：docs/GD32F1x0-外设笔记.md §5 I2C / §4.11（待补语雀链接）
+
+2、I2C 驱动失败恢复与调试量
+bsp_i2c_read_reg() 持续失败时，根因为从机 NACK 后未清 AERR、总线 I2CBSY 未释放。已在 bap_i2c.c 增加 AERR 检测、超时退出、GPIO bit-bang 总线恢复及外设重初始化；新增 g_i2c_last_fail_stage（1~8 对应 START/地址/寄存器/重启/读数据等阶段），便于 Watch/VOFA+ 定位失败点。
+成果语雀链接：docs/M-02-M03-感知采集实现笔记.md（待补语雀链接）
+
+3、ADC 与 I2C 并发架构梳理
+确认电流/母线电压为 TIMER2 TRGO + DMA 后台采样（electricity_update 读 DMA 缓冲）；AS5600 走主循环 I2C 阻塞读，传输期间关中断，与 TIMER13 1kHz 控制 tick 分工明确。JustFloat 已预留 encoder_degree、speed、plan_speed、target_angle、multi_degree 五通道，便于明日联调。
+成果语雀链接：docs/功能实现任务拆解-语雀版.md M-02/M-03（待补语雀链接）
+
+三、今日核心工作产出总结
+
+今日完成 M-03 位置感知链路的调度与 I2C 驱动两层修复，并明确 ADC DMA 与 I2C 主循环并发边界，为 AS5600 实机读角与后续速度观测器联调打下基础。
+
+四、今日工作卡点 & 技术问题
+
+问题现象：bsp_i2c_read_reg() 持续失败，VOFA+ 角度为 0；失败时 g_i2c_last_fail_stage 可能停在 1（地址 NACK）或后续读阶段。
+已尝试解决方法：修复 motor_encoder_flag 100Hz 调度；I2C 驱动增加 AERR/超时/总线恢复；增加 fail_stage 调试变量；主循环采样顺序固定为 ADC → 编码器。
+当前阻塞程度：软件层修改已完成，待 Rebuild 烧录实机验证；若 stage=1 仍为地址 NACK，需查 AS5600 3.3V 供电、PA9/PA10 上拉与 I2C 地址 0x36。
+是否需要支援：暂不需要；实机结果出来后再判断是否需硬件协助。
+
+五、需对外协同事项
+
+无
+
+六、明日工作计划
+
+1、（P1）Keil Rebuild 烧录，VOFA+ 验证 motor_encoder_degree / motor_angle_multi_degree 非 0 且随转动变化。
+2、（P1）记录 g_i2c_last_fail_stage 与 AS5600 STATUS_MD 位，完成 I2C 软件/硬件闭环排查。
+3、（P2）速度观测器与 JustFloat 五通道联调，确认 100Hz 位置采样下 speed_degree 波形合理。
+
+七、其他备注
+
+控制环当前参数：TIMER13 1kHz；编码器 100Hz；速度 PID 500Hz；位置环 250Hz（time.h / encoder.h，供明日运动控制联调参考）。

@@ -4,7 +4,6 @@
 #include "gd32f1x0.h"
 
 void pwm_init(void);
-void pwm_start(void);
 void pwm_set_duty(int16_t duty);
 
 #endif

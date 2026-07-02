@@ -12,7 +12,9 @@
   ..\Library\Include\gd32f1x0_spi.h ..\Library\Include\gd32f1x0_timer.h \
   ..\Library\Include\gd32f1x0_usart.h \
   ..\Library\Include\gd32f1x0_wwdgt.h ..\Library\Include\gd32f1x0_misc.h \
-  ..\Library\Include\gd32f1x0_tsi.h ..\User\systick.h \
-  ..\User\servo\init.h ..\User\bsp\bsp_gpio.h ..\User\bsp\bsp_adc.h \
-  ..\User\bsp\bsp_pwm.h ..\User\bsp\bsp_dma.h ..\User\servo\motor.h \
-  ..\User\servo\servo_config.h
+  ..\Library\Include\gd32f1x0_tsi.h ..\User\servo\init.h \
+  ..\User\bsp\bsp_gpio.h ..\User\bsp\bsp_adc.h ..\User\servo\motor.h \
+  ..\User\servo\servo_config.h ..\User\servo\time.h \
+  ..\User\servo\encoder.h ..\User\servo\electricity.h \
+  ..\User\servo\speed.h ..\User\servo\uart.h ..\User\servo\data_send.h \
+  ..\User\servo\pid.h ..\User\servo\motor_test.h ..\User\bsp\bsp_i2c.h
