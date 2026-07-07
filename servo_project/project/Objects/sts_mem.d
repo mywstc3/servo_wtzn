@@ -1,5 +1,6 @@
-./objects/main.o: ..\User\main.c ..\CMSIS\gd32f1x0.h ..\CMSIS\core_cm3.h \
-  ..\CMSIS\core_cmInstr.h ..\CMSIS\core_cmFunc.h \
+./objects/sts_mem.o: ..\User\servo\sts_mem.c ..\User\servo\sts_mem.h \
+  ..\User\servo\sts_mem_map.h ..\User\servo\motor.h ..\CMSIS\gd32f1x0.h \
+  ..\CMSIS\core_cm3.h ..\CMSIS\core_cmInstr.h ..\CMSIS\core_cmFunc.h \
   ..\CMSIS\system_gd32f1x0.h ..\User\gd32f1x0_libopt.h \
   ..\Library\Include\gd32f1x0_adc.h ..\Library\Include\gd32f1x0_cec.h \
   ..\Library\Include\gd32f1x0_crc.h ..\Library\Include\gd32f1x0_cmp.h \
@@ -12,9 +13,4 @@
   ..\Library\Include\gd32f1x0_spi.h ..\Library\Include\gd32f1x0_timer.h \
   ..\Library\Include\gd32f1x0_usart.h \
   ..\Library\Include\gd32f1x0_wwdgt.h ..\Library\Include\gd32f1x0_misc.h \
-  ..\Library\Include\gd32f1x0_tsi.h ..\User\servo\init.h \
-  ..\User\bsp\bsp_gpio.h ..\User\bsp\bsp_adc.h ..\User\servo\motor.h \
-  ..\User\servo\servo_config.h ..\User\servo\time.h \
-  ..\User\servo\encoder.h ..\User\servo\electricity.h \
-  ..\User\servo\speed.h ..\User\servo\uart.h ..\User\servo\motor_test.h \
-  ..\User\bsp\bsp_i2c.h
+  ..\Library\Include\gd32f1x0_tsi.h ..\User\servo\servo_config.h

@@ -735,6 +735,16 @@
               <FileType>5</FileType>
               <FilePath>..\User\servo\motor_test.h</FilePath>
             </File>
+            <File>
+              <FileName>sts_proto.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\servo\sts_proto.c</FilePath>
+            </File>
+            <File>
+              <FileName>sts_proto.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\User\servo\sts_proto.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

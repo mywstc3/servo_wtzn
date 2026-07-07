@@ -1,7 +1,6 @@
 #include "encoder.h"
 #include "bsp/bsp_i2c.h"
 #include "servo_config.h"
-
 #define AS5600_REG_STATUS_BASE    0x0BU   /* 连读 STATUS + RAW + ANGLE，一次 I2C 事务 */
 
 void encoder_init(void)

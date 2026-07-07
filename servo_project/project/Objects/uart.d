@@ -13,4 +13,5 @@
   ..\Library\Include\gd32f1x0_spi.h ..\Library\Include\gd32f1x0_timer.h \
   ..\Library\Include\gd32f1x0_usart.h \
   ..\Library\Include\gd32f1x0_wwdgt.h ..\Library\Include\gd32f1x0_misc.h \
-  ..\Library\Include\gd32f1x0_tsi.h ..\User\servo\uart.h
+  ..\Library\Include\gd32f1x0_tsi.h ..\User\servo\uart.h \
+  ..\User\servo\sts_proto.h

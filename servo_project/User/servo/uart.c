@@ -1,44 +1,43 @@
 #include "bsp/bap_uart.h"
 #include "uart.h"
+#include "sts_proto.h"
 
-#define UART_RX_RING_SIZE   256U
-
-typedef struct {
-    uint8_t buf[UART_RX_RING_SIZE];
-    volatile uint16_t head;
-    volatile uint16_t tail;
-} uart_rx_ring_t;
-
-static uart_rx_ring_t s_rx_ring;
+uart_rx_ring_t g_uart_rx_ring;
+static volatile uint8_t s_uart_rx_blocked;
 
 static bool ring_put(uint8_t byte)
 {
-    uint16_t next = (uint16_t)((s_rx_ring.head + 1U) % UART_RX_RING_SIZE);
+    uint16_t next = (uint16_t)((g_uart_rx_ring.head + 1U) % UART_RX_RING_SIZE);
 
-    if (next == s_rx_ring.tail) {
+    if (next == g_uart_rx_ring.tail) {
         return FALSE;
     }
-    s_rx_ring.buf[s_rx_ring.head] = byte;
-    s_rx_ring.head = next;
+    g_uart_rx_ring.buf[g_uart_rx_ring.head] = byte;
+    g_uart_rx_ring.head = next;
     return TRUE;
 }
-
 static bool ring_get(uint8_t *byte)
 {
-    if (s_rx_ring.head == s_rx_ring.tail) {
+    if (g_uart_rx_ring.head == g_uart_rx_ring.tail) {
         return FALSE;
     }
-    *byte = s_rx_ring.buf[s_rx_ring.tail];
-    s_rx_ring.tail = (uint16_t)((s_rx_ring.tail + 1U) % UART_RX_RING_SIZE);
+    *byte = g_uart_rx_ring.buf[g_uart_rx_ring.tail];
+    g_uart_rx_ring.tail = (uint16_t)((g_uart_rx_ring.tail + 1U) % UART_RX_RING_SIZE);
     return TRUE;
 }
 
 void uart_comm_init(void)
 {
-    s_rx_ring.head = 0U;
-    s_rx_ring.tail = 0U;
+    g_uart_rx_ring.head = 0U;
+    g_uart_rx_ring.tail = 0U;
     bap_uart_init();
-    /* JustFloat 仅 TX：暂不开启 RBNE，避免半双工自收 + I2C 抢中断 */
+    sts_proto_init();
+    uart_comm_rx_enable();
+}
+
+void uart_comm_poll(void)
+{
+    sts_proto_poll();
 }
 
 void uart_comm_rx_enable(void)
@@ -47,18 +46,58 @@ void uart_comm_rx_enable(void)
     nvic_irq_enable(COMM_USART_IRQn, 2U, 0U);
 }
 
+void uart_comm_tx_begin(void)
+{
+    s_uart_rx_blocked = 1U;
+    usart_interrupt_disable(COMM_USART, USART_INT_RBNE);
+    while (RESET != usart_flag_get(COMM_USART, USART_FLAG_RBNE)) {
+        (void)usart_data_receive(COMM_USART);
+    }
+}
+
+void uart_comm_tx_end(void)
+{
+    while (RESET == usart_flag_get(COMM_USART, USART_FLAG_TC)) {
+    }
+    usart_flag_clear(COMM_USART, USART_FLAG_TC);
+    while (RESET != usart_flag_get(COMM_USART, USART_FLAG_RBNE)) {
+        (void)usart_data_receive(COMM_USART);
+    }
+    s_uart_rx_blocked = 0U;
+    usart_interrupt_enable(COMM_USART, USART_INT_RBNE);
+}
+
+void uart_comm_tx(uint8_t *data, uint8_t length)
+{
+    uart_comm_tx_begin();
+    bap_uart_send(data, length);
+    uart_comm_tx_end();
+}
+
+void uart_comm_rx_flush(void)
+{
+    g_uart_rx_ring.head = 0U;
+    g_uart_rx_ring.tail = 0U;
+    while (RESET != usart_flag_get(COMM_USART, USART_FLAG_RBNE)) {
+        (void)usart_data_receive(COMM_USART);
+    }
+}
+
 void USART1_IRQHandler(void)
 {
     if (RESET != usart_interrupt_flag_get(COMM_USART, USART_INT_FLAG_RBNE)) {
         uint8_t byte = (uint8_t)usart_data_receive(COMM_USART);
+        if (s_uart_rx_blocked != 0U) {
+            return;
+        }
         ring_put(byte);
     }
 }
 
 uint16_t uart_rx_available(void)
 {
-    uint16_t head = s_rx_ring.head;
-    uint16_t tail = s_rx_ring.tail;
+    uint16_t head = g_uart_rx_ring.head;
+    uint16_t tail = g_uart_rx_ring.tail;
 
     if (head >= tail) {
         return (uint16_t)(head - tail);
@@ -69,9 +108,4 @@ uint16_t uart_rx_available(void)
 uint8_t uart_rx_pop(uint8_t *byte)
 {
     return ring_get(byte) ? 1U : 0U;
-}
-
-void uart_comm_poll(void)
-{
-    /* C-01 协议：在此从环形缓冲取字节组帧、解析命令 */
 }

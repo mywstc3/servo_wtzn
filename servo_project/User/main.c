@@ -6,8 +6,6 @@
 #include "servo/speed.h"
 #include "servo/servo_config.h"
 #include "servo/uart.h"
-#include "servo/data_send.h"
-#include "servo/pid.h"
 #include "servo/motor_test.h"
 #include "bsp/bsp_i2c.h"
 
@@ -31,12 +29,5 @@ int main(void)
         uart_comm_poll();
         motor_test_poll();
         motor_control(&motor_context);
-        if (!justfloat_dma_busy()) {
-            JF_SEND(motor_context.sensor.motor_encoder_degree,
-                    motor_context.sensor.motor_speed_degree,
-                    motor_context.control.plan_speed,
-                    motor_context.control.target_angle,
-                    motor_context.sensor.motor_angle_multi_degree);
-        }
     }
 }
