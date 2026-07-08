@@ -23,13 +23,18 @@ int main(void)
     init_all();
 
     while (1) {
+        uart_comm_poll();
+        sts_mem_poll();
+
         if (motor_context.flag.motor_adc_flag) {
             motor_context.flag.motor_adc_flag = FALSE;
             electricity_update();
+            uart_comm_poll();
         }
         if (motor_context.flag.motor_encoder_flag) {
             motor_context.flag.motor_encoder_flag = FALSE;
             encoder_update();
+            uart_comm_poll();
             if (motor_context.flag.motor_speed_flag) {
                 motor_context.flag.motor_speed_flag = FALSE;
                 speed_update(&g_speed_observer, &motor_context.sensor);
@@ -46,10 +51,10 @@ int main(void)
             }
 #endif
         }
-        uart_comm_poll();
         if (sts_mem_control_active() == 0U) {
             motor_test_poll();
         }
         motor_control(&motor_context);
+        uart_comm_poll();
     }
 }

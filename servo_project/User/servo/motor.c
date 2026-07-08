@@ -115,14 +115,14 @@ void motor_sync_target_to_actual(motor_context_t *ctx)
     ctx->motor_pid.motor_speed_pid.integral = 0.0f;
     ctx->motor_pid.motor_speed_pid.last_error = 0.0f;
     s_pos_stop_hold = 1U;
-    ctx->flag.angle_start_flag = true;
+    ctx->flag.angle_start_flag = TRUE;
 }
 
 void motor_position_home(void)
 {
     uint32_t retry;
 
-    motor_context.flag.angle_start_flag = false;
+    motor_context.flag.angle_start_flag = FALSE;
     for (retry = 0U; retry < 500U; retry++) {
         if (encoder_update()) {
             speed_observer_reset(&g_speed_observer, &motor_context.sensor);

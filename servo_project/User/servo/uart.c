@@ -56,6 +56,7 @@ static void uart_hw_init_recover(void)
         (void)usart_data_receive(COMM_USART);
     }
     usart_receive_config(COMM_USART, USART_RECEIVE_ENABLE);
+    usart_transmit_config(COMM_USART, USART_TRANSMIT_ENABLE);
     usart_interrupt_enable(COMM_USART, USART_INT_RBNE);
     nvic_irq_enable(COMM_USART_IRQn, 2U, 0U);
     uart_dbg_refresh();
@@ -109,6 +110,10 @@ void uart_comm_rx_enable(void)
     nvic_irq_enable(COMM_USART_IRQn, 2U, 0U);
 }
 
+/*
+ * HDEN 半双工勿切换 REN/TEN（与 HDEN 冲突）。
+ * 发期间保持 RBNE，用 s_uart_rx_blocked 丢弃自发回波。
+ */
 void uart_comm_tx_begin(void)
 {
     s_uart_rx_blocked = 1U;
@@ -139,11 +144,13 @@ void uart_comm_rx_flush(void)
 
 void USART1_IRQHandler(void)
 {
+    if (RESET != usart_flag_get(COMM_USART, USART_FLAG_ORERR)) {
+        (void)usart_data_receive(COMM_USART);
+        usart_flag_clear(COMM_USART, USART_FLAG_ORERR);
+    }
+
     if (RESET != usart_interrupt_flag_get(COMM_USART, USART_INT_FLAG_RBNE)) {
         uint8_t byte = (uint8_t)usart_data_receive(COMM_USART);
-        if (RESET != usart_flag_get(COMM_USART, USART_FLAG_ORERR)) {
-            usart_flag_clear(COMM_USART, USART_FLAG_ORERR);
-        }
         g_uart_rx_irq_cnt++;
         if (s_uart_rx_blocked != 0U) {
             g_uart_rx_skip_cnt++;

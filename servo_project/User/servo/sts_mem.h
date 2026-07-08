@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 void sts_mem_init(void);
+void sts_mem_poll(void);
 uint8_t sts_mem_read(uint8_t addr, uint8_t *out, uint8_t len);
 uint8_t sts_mem_write(uint8_t addr, const uint8_t *data, uint8_t len);
 void sts_mem_refresh_feedback(void);

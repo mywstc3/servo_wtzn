@@ -4,6 +4,10 @@
 
 #include <string.h>
 
+extern volatile uint32_t g_control_tick;
+
+#define STS_FEEDBACK_REFRESH_MS      50U
+
 void motor_enable(void);
 void motor_disable(void);
 int16_t motor_get_duty(void);
@@ -31,6 +35,7 @@ static uint8_t s_mem[STS_MEM_SIZE];
 static uint8_t s_last_error;
 static uint8_t s_control_active;
 static uint8_t s_magnet_ok = 1U;
+static uint32_t s_feedback_last_tick;
 
 static void put_u16_le(uint8_t addr, uint16_t value)
 {
@@ -230,8 +235,20 @@ void sts_mem_init(void)
     s_last_error = 0U;
     s_control_active = 0U;
     s_magnet_ok = 1U;
+    s_feedback_last_tick = 0U;
     sts_apply_pid_from_mem();
     sts_mem_refresh_feedback();
+}
+
+void sts_mem_poll(void)
+{
+    uint32_t now = g_control_tick;
+    uint32_t elapsed = now - s_feedback_last_tick;
+
+    if (elapsed >= STS_FEEDBACK_REFRESH_MS) {
+        s_feedback_last_tick = now;
+        sts_mem_refresh_feedback();
+    }
 }
 
 void sts_mem_refresh_feedback(void)
@@ -290,7 +307,6 @@ uint8_t sts_mem_read(uint8_t addr, uint8_t *out, uint8_t len)
         return 0U;
     }
 
-    sts_mem_refresh_feedback();
     for (i = 0U; i < len; i++) {
         out[i] = s_mem[(uint8_t)(addr + i)];
     }

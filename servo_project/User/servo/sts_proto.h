@@ -6,8 +6,8 @@
 #define STS_HEADER_0            0xFFU
 #define STS_HEADER_1            0xFFU
 
-#define STS_RX_FRAME_CNT        10U
-#define STS_TX_FRAME_CNT        10U
+#define STS_RX_FRAME_CNT        16U
+#define STS_TX_FRAME_CNT        16U
 #define STS_FRAME_DATA_MAX      128U
 
 #define STS_INST_PING           0x01U

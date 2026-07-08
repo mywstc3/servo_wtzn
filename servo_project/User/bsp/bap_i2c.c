@@ -260,9 +260,7 @@ bool bsp_i2c_read_reg(uint8_t dev_addr_7bit, uint8_t reg, uint8_t *data, uint8_t
 
 
 
-    /* I2C 不可重入：禁止 TIMER13 等中断在传输中途抢占 */
-
-    __disable_irq();
+    /* TIMER13 只置 flag，不重入 I2C；勿关总中断，否则 1Mbps UART 丢字节 */
 
     i2c_clear_error_flags();
 
@@ -397,8 +395,6 @@ exit:
         i2c_bus_recover();
 
     }
-
-    __enable_irq();
 
     return ok;
 

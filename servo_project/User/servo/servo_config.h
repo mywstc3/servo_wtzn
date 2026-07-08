@@ -1,8 +1,8 @@
 #ifndef __SERVO_CONFIG_H
 #define __SERVO_CONFIG_H
 
-#include "stdbool.h"
-#include "stdint.h"
+#include "gd32f1x0.h"
+#include <stdint.h>
 
 #define POS_PLAN_DEADZONE_DEG   1.0f    /* 停止轨迹规划，进入位置环精调 (°) */
 #define POS_STOP_HYSTERESIS_DEG 0.25f    /* 退出精调区滞回 (°) */
