@@ -21,6 +21,7 @@ typedef enum {
     sts_frame_state_id,
     sts_frame_state_length,
     sts_frame_state_data,
+    sts_frame_state_discard,
     sts_frame_state_ready,
 } sts_frame_state_t;
 

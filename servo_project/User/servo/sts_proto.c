@@ -124,8 +124,31 @@ void sts_proto_rx_frame_group(uint8_t byte)
         break;
 
     case sts_frame_state_id:
-        rx->id = byte;
-        rx->frame_state = sts_frame_state_length;
+        if (byte == sts_mem_get_servo_id() || byte == STS_ID_BROADCAST) {
+            rx->id = byte;
+            rx->frame_state = sts_frame_state_length;
+        } else {
+            /* 非本机 ID：进入丢弃态，按 LENGTH 跳过整帧剩余字节 */
+            rx->frame_state = sts_frame_state_discard;
+            rx->length = 0U;
+            rx->data_idx = 0U;
+        }
+        break;
+
+    case sts_frame_state_discard:
+        if (rx->length == 0U) {
+            if (byte < 2U || byte >= STS_FRAME_DATA_MAX) {
+                sts_frame_reset(rx);
+            } else {
+                rx->length = byte;
+                rx->data_idx = 0U;
+            }
+        } else {
+            rx->data_idx++;
+            if (rx->data_idx >= rx->length) {
+                sts_frame_reset(rx);
+            }
+        }
         break;
 
     case sts_frame_state_length:
