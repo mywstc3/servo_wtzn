@@ -12,6 +12,13 @@ typedef struct {
 } uart_rx_ring_t;
 
 extern uart_rx_ring_t g_uart_rx_ring;
+extern volatile uint32_t g_uart_rx_irq_cnt;
+extern volatile uint32_t g_uart_rx_put_cnt;
+extern volatile uint32_t g_uart_rx_skip_cnt;
+extern volatile uint32_t g_uart_rx_drop_cnt;
+extern volatile uint32_t g_uart_dbg_blocked;
+extern volatile uint32_t g_uart_dbg_stat;
+extern volatile uint32_t g_uart_dbg_ctl0;
 
 void uart_comm_init(void);
 void uart_comm_poll(void);

@@ -17,4 +17,4 @@
   ..\User\servo\servo_config.h ..\User\servo\time.h \
   ..\User\servo\encoder.h ..\User\servo\electricity.h \
   ..\User\servo\speed.h ..\User\servo\uart.h ..\User\servo\motor_test.h \
-  ..\User\bsp\bsp_i2c.h
+  ..\User\servo\sts_mem.h ..\User\bsp\bsp_i2c.h

@@ -1,5 +1,7 @@
 #include "sts_proto.h"
 #include "uart.h"
+#include "sts_mem.h"
+#include "sts_mem_map.h"
 #include <stddef.h>
 
 sts_frame_t g_sts_tx_frame[STS_TX_FRAME_CNT] = {0};
@@ -8,6 +10,10 @@ volatile uint8_t g_sts_rx_frame_head = 0U;
 volatile uint8_t g_sts_rx_frame_tail = 0U;
 volatile uint8_t g_sts_rx_frame_count = 0U;
 sts_frame_t g_sts_rx_assemble = {0};
+
+static uint8_t s_cs_buf[2U + STS_FRAME_DATA_MAX];
+static uint8_t s_read_buf[STS_FRAME_DATA_MAX];
+static uint8_t s_read_tx[STS_FRAME_DATA_MAX + 6U];
 
 static void sts_frame_reset(sts_frame_t *frame)
 {
@@ -31,7 +37,6 @@ static uint8_t sts_checksum(const uint8_t *data, uint8_t len)
 
 static uint8_t sts_frame_verify(sts_frame_t *frame)
 {
-    uint8_t cs_buf[2U + STS_FRAME_DATA_MAX];
     uint8_t payload_len;
     uint8_t rx_cs;
     uint8_t calc_cs;
@@ -45,15 +50,15 @@ static uint8_t sts_frame_verify(sts_frame_t *frame)
     }
 
     rx_cs = frame->data[payload_len];
-    cs_buf[0] = frame->id;
-    cs_buf[1] = frame->length;
+    s_cs_buf[0] = frame->id;
+    s_cs_buf[1] = frame->length;
     if (payload_len > 0U) {
         uint8_t i;
         for (i = 0U; i < payload_len; i++) {
-            cs_buf[2U + i] = frame->data[i];
+            s_cs_buf[2U + i] = frame->data[i];
         }
     }
-    calc_cs = sts_checksum(cs_buf, (uint8_t)(2U + payload_len));
+    calc_cs = sts_checksum(s_cs_buf, (uint8_t)(2U + payload_len));
     return (uint8_t)(calc_cs == rx_cs);
 }
 
@@ -96,6 +101,7 @@ void sts_proto_init(void)
         g_sts_rx_frame[i].frame_state = sts_frame_state_idle;
         g_sts_tx_frame[i].frame_state = sts_frame_state_idle;
     }
+    sts_mem_init();
 }
 
 void sts_proto_rx_frame_group(uint8_t byte)
@@ -173,37 +179,95 @@ uint8_t sts_proto_rx_frame_pop(sts_frame_t *out)
 
 static void sts_proto_process_one_frame(const sts_frame_t *frame)
 {
-    if (frame->id == 0x01)
-    {
-        switch (frame->data[0]) {
-        case STS_INST_PING:
-        {
+    uint8_t inst;
+    uint8_t err = 0U;
+    uint8_t need_rsp;
+    uint8_t id_rsp;
+
+    if (frame == NULL || frame->checksum_ok == 0U || frame->length < 2U) {
+        return;
+    }
+    if (frame->id != sts_mem_get_servo_id() && frame->id != STS_ID_BROADCAST) {
+        return;
+    }
+
+    inst = frame->data[0];
+    need_rsp = (uint8_t)((frame->id != STS_ID_BROADCAST) || (inst == STS_INST_PING));
+    id_rsp = (frame->id == STS_ID_BROADCAST) ? sts_mem_get_servo_id() : frame->id;
+
+    if (inst == STS_INST_PING) {
+        if (need_rsp != 0U) {
             uint8_t tx_data[6];
             uint8_t plen = 2U;
-
             tx_data[0] = STS_HEADER_0;
             tx_data[1] = STS_HEADER_1;
-            tx_data[2] = frame->id;
+            tx_data[2] = id_rsp;
             tx_data[3] = plen;
-            tx_data[4] = 0U;
+            tx_data[4] = sts_mem_get_error();
             tx_data[5] = sts_checksum(&tx_data[2], (uint8_t)(1U + plen));
             uart_comm_tx(tx_data, 6U);
-            break;
         }
-        case STS_INST_READ:{
+        return;
+    }
 
+    if (inst == STS_INST_READ) {
+        uint8_t addr;
+        uint8_t rlen;
+        uint8_t plen;
+        uint8_t i;
 
-
+        if (frame->length < 4U) {
+            return;
         }
-            break;
-        case STS_INST_WRITE:{
-            
+        addr = frame->data[1];
+        rlen = frame->data[2];
+        if (rlen == 0U || rlen > STS_FRAME_DATA_MAX) {
+            return;
         }
-            break;
-        case 0x04:
-            break;
-        default:
-            break;
+        if (sts_mem_read(addr, s_read_buf, rlen) != rlen) {
+            return;
+        }
+        err = sts_mem_get_error();
+        if (need_rsp == 0U) {
+            return;
+        }
+        plen = (uint8_t)(2U + rlen);
+        s_read_tx[0] = STS_HEADER_0;
+        s_read_tx[1] = STS_HEADER_1;
+        s_read_tx[2] = id_rsp;
+        s_read_tx[3] = plen;
+        s_read_tx[4] = err;
+        for (i = 0U; i < rlen; i++) {
+            s_read_tx[(uint8_t)(5U + i)] = s_read_buf[i];
+        }
+        s_read_tx[(uint8_t)(5U + rlen)] = sts_checksum(&s_read_tx[2], (uint8_t)(1U + plen));
+        uart_comm_tx(s_read_tx, (uint8_t)(6U + rlen));
+        return;
+    }
+
+    if (inst == STS_INST_WRITE) {
+        uint8_t addr;
+        uint8_t wlen;
+        if (frame->length < 3U) {
+            return;
+        }
+        addr = frame->data[1];
+        wlen = (uint8_t)(frame->length - 3U);
+        if (wlen == 0U) {
+            return;
+        }
+        (void)sts_mem_write(addr, &frame->data[2], wlen);
+        err = sts_mem_get_error();
+        if (need_rsp != 0U) {
+            uint8_t tx_data[6];
+            uint8_t plen = 2U;
+            tx_data[0] = STS_HEADER_0;
+            tx_data[1] = STS_HEADER_1;
+            tx_data[2] = id_rsp;
+            tx_data[3] = plen;
+            tx_data[4] = err;
+            tx_data[5] = sts_checksum(&tx_data[2], (uint8_t)(1U + plen));
+            uart_comm_tx(tx_data, 6U);
         }
     }
 }

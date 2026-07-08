@@ -745,6 +745,21 @@
               <FileType>5</FileType>
               <FilePath>..\User\servo\sts_proto.h</FilePath>
             </File>
+            <File>
+              <FileName>sts_mem.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\servo\sts_mem.c</FilePath>
+            </File>
+            <File>
+              <FileName>sts_mem.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\User\servo\sts_mem.h</FilePath>
+            </File>
+            <File>
+              <FileName>sts_mem_map.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\User\servo\sts_mem_map.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

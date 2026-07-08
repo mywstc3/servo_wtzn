@@ -1,0 +1,55 @@
+研发团队工作日报
+
+日期：2026年7月7日（周二）
+项目：飞特 STS3215c018 舵机 / GD32F130 伺服固件
+
+一、昨日遗留工作闭环
+
+上一版日报（7/2）遗留位置环实机整参与 M-05 精度量化；本日整体转向 STS 协议栈从零自实现。上午移除旧版 sts 代码并写自实现文档；下午重建 sts_proto（收帧+PING）；傍晚完成 sts_mem+READ/WRITE 与 main/encoder 集成；夜间 UART 多帧收发回归调试并合并到 main。7/2 位置环整参仍顺延，Flash EPROM 持久化未启动。
+
+二、今日完成工作
+
+1、STS 协议自实现文档与代码基线重建
+按「自己实现」目标删除旧 sts_proto/sts_mem/sts_debug 等文件，清理 uart/main/motor_test/encoder/Keil 引用；新建 docs/STS协议自实现指南.md（架构、帧格式、内存表、电机桥接、四阶段实现与测试用例）及 docs/STS完整实现指南.md v2（xuniduoji 对照、六阶段清单）。随后从零重写 sts_proto：字节环→3 槽完成帧环+组帧缓冲、Checksum、PING 正确回 FF FF ID 02 Err CS；g_uart_rx_ring 改全局供 Keil Watch。
+成果语雀链接：https://wit-motion.yuque.com/sd8v4v/project_doc/du8lqi1rknyewgxd
+
+2、STS 完整实现指南补全（附录 A/D）
+按磁编码STS内存表.docx 将 STS完整实现指南.md 附录 A 扩为可直接使用的完整 0x80 地址表（版本/EPROM/SRAM/反馈/出厂区）；按舵机STS自定义通信协议.docx 补附录 D 协议指令速查（PING/READ/WRITE 帧格式与示例 hex）。
+成果语雀链接：https://wit-motion.yuque.com/sd8v4v/project_doc/du8lqi1rknyewgxd
+
+3、sts_mem 内存表与 READ/WRITE 协议接入
+新增 sts_mem_map.h、sts_mem.h、sts_mem.c、sts_memory.h（兼容转发）；实现 0x80 RAM 表读写、反馈刷新、写副作用（GOAL_POS/RUN_SPEED/TORQUE_SWITCH/PID 等到 motor_context）。sts_proto.c 补全 PING/READ/WRITE、ID/广播 0xFE 匹配、sts_mem_init()；READ 大缓冲改 static（~260B 栈溢出风险消除）。main.c 在 sts_mem_control_active() 时跳过 motor_test_poll；encoder.c 磁编异常时 sts_mem_set_magnet_ok；template.uvprojx 加入 sts_mem 源文件；systick 补 delay_us() 供发送 turnaround。
+成果语雀链接：https://wit-motion.yuque.com/sd8v4v/project_doc/du8lqi1rknyewgxd
+
+4、UART 半双工多帧收发调试与分支管理
+合并 sts_mem 后出现「首次 PING 有回包、第二次无回包」：曾尝试 bap_uart_tx_mode/rx_mode（与 HDEN 冲突，已弃用），WIP 备份至 backup/sts-mem-wip-2026-07-07（2dc9d70），main 恢复 e7e0b42 稳定 UART 后再合入 mem+READ/WRITE。最终策略：发期间不关 RBNE，s_uart_rx_blocked 丢弃回波；tx 前后不 drain RBNE；仅 init/flush 清 FIFO；增 g_uart_rx_irq/put/skip/drop 等调试计数。另定位 tx_end 冗余等 TC 死等导致 blocked 永为 1（usart_putc 已等 TC），去掉后连续 PING 正常。
+成果语雀链接：https://wit-motion.yuque.com/sd8v4v/project_doc/du8lqi1rknyewgxd
+
+5、运动控制联调与 PID/副作用修复
+WRITE 同步写 GOAL_POS+0x2C=00 占位时，sts_on_write 误切开环扭矩 0% 覆盖位置模式（有回包但电机不动），已改为 0x2C 非 0 才进扭矩模式。sts_mem_init 覆盖 motor_init PID 的问题已用缩放恢复：POS_D×0.01、SPEED_I×0.1，默认 5/5/0/10/5 对齐 Kp5/Kd0.05/Ki0.5 与 Kp10/Ki0.5。实机验证 PING/READ/WRITE 状态包；速度模式 raw=50 时 plan≈220°/s 但实际 ~96~98°/s，换算公式与文档一致，倾向满占空比物理限速，待 Watch output 确认。
+成果语雀链接：https://wit-motion.yuque.com/sd8v4v/project_doc/du8lqi1rknyewgxd
+
+三、今日核心工作产出总结
+
+本日完成 STS 协议栈从文档→sts_proto 收帧 PING→sts_mem+READ/WRITE→main/encoder 集成的全链路，补全实现指南附录，解决 UART 多帧与运动写副作用问题，串口命令已可驱动位置/速度模式，实机最高速度与 Flash 持久化待续。
+
+四、今日工作卡点 & 技术问题
+
+问题现象：（1）UART 第二次 PING 无回包 / irq_cnt 涨但 ring 空；（2）运动 WRITE 有回包电机不动；（3）速度模式 plan≈220 实际 ~100°/s。
+已尝试解决方法：弃用 tx_mode/rx_mode；blocked 丢回波+去 tx drain；去 tx_end 死等 TC；0x2C=0 不覆盖位置模式；READ static 缓冲；PID 缩放恢复。
+当前阻塞程度：协议层基本可用；最高速度待 output 饱和确认；Flash EPROM @0x0800FC00 未做；7/2 位置环精度量化仍顺延。
+是否需要支援：暂不需要。
+
+五、需对外协同事项
+
+无
+
+六、明日工作计划
+
+1、（P1）连续 PING/READ 0x38/WRITE 扭矩+GOAL_POS 实机验收，Watch mode/plan_speed/output
+2、（P1）速度对照 raw=23 vs raw=50，确认 ~100°/s 为机械上限还是控制链路问题
+3、（P2）Flash EPROM 持久化（参考 xuniduoji servo_memory.c）；7/2 遗留位置环整参
+
+七、其他备注
+
+Git：main 基于 e7e0b42（STS 收帧+PING），本日 sts_mem/READ/WRITE/UART 修复多为工作区改动；backup/sts-mem-wip-2026-07-07 含错误 UART 改动勿合并。参考工程：E:\wtzn\xuniduoji\xuniduoji\User\。

@@ -1,6 +1,7 @@
 #include "encoder.h"
 #include "bsp/bsp_i2c.h"
 #include "servo_config.h"
+#include "sts_mem.h"
 #define AS5600_REG_STATUS_BASE    0x0BU   /* 连读 STATUS + RAW + ANGLE，一次 I2C 事务 */
 
 void encoder_init(void)
@@ -15,9 +16,11 @@ uint8_t encoder_update(void)
 
     /* 0x0B STATUS, 0x0C-0x0D RAW, 0x0E-0x0F ANGLE */
     if (!bsp_i2c_read_reg(AS5600_I2C_ADDR_7BIT, AS5600_REG_STATUS_BASE, buf, 5U)) {
+        sts_mem_set_magnet_ok(0U);
         return 0U;
     }
     if ((buf[0] & AS5600_STATUS_MD) == 0U) {
+        sts_mem_set_magnet_ok(0U);
         return 0U;
     }
 
@@ -26,5 +29,6 @@ uint8_t encoder_update(void)
     motor_context.sensor.motor_encoder_degree = (float)raw * 360.0f / 4096.0f;
     motor_context.sensor.motor_encoder_radian =
         motor_context.sensor.motor_encoder_degree * 3.14159265f / 180.0f;
+    sts_mem_set_magnet_ok(1U);
     return 1U;
 }

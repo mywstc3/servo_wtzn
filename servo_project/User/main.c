@@ -7,6 +7,7 @@
 #include "servo/servo_config.h"
 #include "servo/uart.h"
 #include "servo/motor_test.h"
+#include "servo/sts_mem.h"
 #include "bsp/bsp_i2c.h"
 
 int main(void)
@@ -27,7 +28,9 @@ int main(void)
             }
         }
         uart_comm_poll();
-        motor_test_poll();
+        if (sts_mem_control_active() == 0U) {
+            motor_test_poll();
+        }
         motor_control(&motor_context);
     }
 }
