@@ -12,7 +12,6 @@ void angle_control_plan_reset(motor_control_context_t *ctx, float current_angle)
 
 #define STS_POS_UNIT_DEG             0.087f
 #define STS_ACC_UNIT_DEGS2           8.7f
-#define STS_SPEED_UNIT_RPM           0.732f
 #define STS_VOLT_UNIT_V              0.1f
 #define STS_CURR_UNIT_MA             6.5f
 
@@ -24,6 +23,9 @@ void angle_control_plan_reset(motor_control_context_t *ctx, float current_angle)
 #define STS_ERR_OVERCURRENT          0x02U
 #define STS_ERR_OVER_TEMPERATURE     0x04U
 #define STS_ERR_MAGNET_LOST          0x08U
+
+#define STS_LOAD_DUTY_MAX            3599
+#define STS_LOAD_DIR_BIT             0x0400U
 
 static uint8_t s_mem[STS_MEM_SIZE];
 static uint8_t s_last_error;
@@ -46,6 +48,26 @@ static float sts_absf(float v)
     return (v >= 0.0f) ? v : -v;
 }
 
+static int16_t sts_encode_load(int16_t duty)
+{
+    int32_t mag;
+    int32_t ad;
+
+    if (duty < 0) {
+        ad = -(int32_t)duty;
+    } else {
+        ad = (int32_t)duty;
+    }
+    mag = ad * 1000 / STS_LOAD_DUTY_MAX;
+    if (mag > 1023) {
+        mag = 1023;
+    }
+    if (duty < 0) {
+        mag |= (int32_t)STS_LOAD_DIR_BIT;
+    }
+    return (int16_t)mag;
+}
+
 static float pos_to_deg(int16_t pos)
 {
     return (float)pos * STS_POS_UNIT_DEG;
@@ -62,10 +84,14 @@ static int16_t deg_to_pos(float deg)
     return (int16_t)q;
 }
 
+static float speed_raw_to_degs(int16_t raw)
+{
+    return (float)raw * STS_POS_UNIT_DEG;
+}
+
 static int16_t degs_to_speed_raw(float deg_per_sec)
 {
-    float rpm = deg_per_sec / 6.0f;
-    float q = rpm / STS_SPEED_UNIT_RPM;
+    float q = deg_per_sec / STS_POS_UNIT_DEG;
     if (q > 32767.0f) {
         q = 32767.0f;
     } else if (q < -32768.0f) {
@@ -122,9 +148,8 @@ static void sts_on_write(uint8_t addr, uint8_t len)
 
     if (sts_range_hit(addr, len, STS_ADDR_RUN_SPEED_L, 2U)) {
         int16_t raw = (int16_t)get_u16_le(STS_ADDR_RUN_SPEED_L);
-        float rpm = (float)raw * STS_SPEED_UNIT_RPM;
         motor_context.control.mode = motor_control_mode_speed_torque;
-        motor_context.control.target_speed = rpm * 6.0f;
+        motor_context.control.target_speed = speed_raw_to_degs(raw);
         motor_context.control.target_a_speed = (float)s_mem[STS_ADDR_GOAL_ACC] * STS_ACC_UNIT_DEGS2;
         speed_control_plan_reset(&motor_context.control, motor_context.sensor.motor_speed_degree);
         s_control_active = 1U;
@@ -134,7 +159,8 @@ static void sts_on_write(uint8_t addr, uint8_t len)
         int16_t raw = (int16_t)get_u16_le(STS_ADDR_GOAL_POS_L);
         motor_context.control.mode = motor_control_mode_position_speed_torque;
         motor_context.control.target_angle = pos_to_deg(raw);
-        motor_context.control.target_speed = sts_absf((float)((int16_t)get_u16_le(STS_ADDR_RUN_SPEED_L)) * STS_SPEED_UNIT_RPM * 6.0f);
+        motor_context.control.target_speed =
+            sts_absf(speed_raw_to_degs((int16_t)get_u16_le(STS_ADDR_RUN_SPEED_L)));
         if (motor_context.control.target_speed < 1.0f) {
             motor_context.control.target_speed = 180.0f;
         }
@@ -213,18 +239,19 @@ void sts_mem_refresh_feedback(void)
     int16_t pos_raw;
     int16_t speed_raw;
     int16_t goal_raw;
-    int16_t duty_raw;
+    int16_t load_raw;
     uint8_t status = 0U;
 
     pos_raw = deg_to_pos(motor_context.sensor.motor_angle_multi_degree);
-    speed_raw = degs_to_speed_raw(motor_context.sensor.motor_speed_degree);
+    /* PRESENT_SPEED 反馈为绝对值，方向由 RUN_SPEED 命令符号表示 */
+    speed_raw = degs_to_speed_raw(sts_absf(motor_context.sensor.motor_speed_degree));
     goal_raw = deg_to_pos(motor_context.control.target_angle);
-    duty_raw = (int16_t)motor_get_duty();
+    load_raw = sts_encode_load(motor_get_duty());
 
     put_u16_le(STS_ADDR_PRESENT_POS_L, (uint16_t)pos_raw);
     put_u16_le(STS_ADDR_PRESENT_SPEED_L, (uint16_t)speed_raw);
     put_u16_le(STS_ADDR_GOAL_POS_FB_L, (uint16_t)goal_raw);
-    put_u16_le(STS_ADDR_PRESENT_LOAD_L, (uint16_t)duty_raw);
+    put_u16_le(STS_ADDR_PRESENT_LOAD_L, (uint16_t)load_raw);
 
     s_mem[STS_ADDR_PRESENT_VOLT] =
         (uint8_t)(motor_context.sensor.motor_adc_v_bus / STS_VOLT_UNIT_V);

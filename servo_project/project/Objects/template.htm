@@ -3,7 +3,7 @@
 <title>Static Call Graph - [.\Objects\template.axf]</title></head>
 <body><HR>
 <H1>Static Call Graph for image .\Objects\template.axf</H1><HR>
-<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 6220000: Last Updated: Wed Jul  8 10:23:06 2026
+<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 6220000: Last Updated: Wed Jul  8 15:08:14 2026
 <BR><P>
 <H3>Maximum Stack Usage =        260 bytes + Unknown(Cycles, Untraceable Function Pointers)</H3><H3>
 Call chain for Maximum Stack Depth:</H3>
@@ -1185,7 +1185,7 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[c8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;sts_proto_poll
 </UL>
 
-<P><STRONG><a name="[c4]"></a>sts_mem_refresh_feedback</STRONG> (Thumb, 420 bytes, Stack size 32 bytes, sts_mem.o(.text.sts_mem_refresh_feedback))
+<P><STRONG><a name="[c4]"></a>sts_mem_refresh_feedback</STRONG> (Thumb, 452 bytes, Stack size 32 bytes, sts_mem.o(.text.sts_mem_refresh_feedback))
 <BR><BR>[Stack]<UL><LI>Max Depth = 52<LI>Call Chain = sts_mem_refresh_feedback &rArr; __aeabi_fsub &rArr; __aeabi_fadd &rArr; _float_epilogue
 </UL>
 <BR>[Calls]<UL><LI><a href="#[ab]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_f2iz
@@ -1204,7 +1204,7 @@ Global Symbols
 <BR><BR>[Called By]<UL><LI><a href="#[98]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;encoder_update
 </UL>
 
-<P><STRONG><a name="[c6]"></a>sts_mem_write</STRONG> (Thumb, 666 bytes, Stack size 40 bytes, sts_mem.o(.text.sts_mem_write))
+<P><STRONG><a name="[c6]"></a>sts_mem_write</STRONG> (Thumb, 642 bytes, Stack size 40 bytes, sts_mem.o(.text.sts_mem_write))
 <BR><BR>[Stack]<UL><LI>Max Depth = 64<LI>Call Chain = sts_mem_write &rArr; motor_disable &rArr; pwm_set_duty
 </UL>
 <BR>[Calls]<UL><LI><a href="#[47]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_i2f
@@ -1221,7 +1221,7 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[c8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;sts_proto_poll
 </UL>
 
-<P><STRONG><a name="[c7]"></a>sts_proto_init</STRONG> (Thumb, 96 bytes, Stack size 0 bytes, sts_proto.o(.text.sts_proto_init))
+<P><STRONG><a name="[c7]"></a>sts_proto_init</STRONG> (Thumb, 88 bytes, Stack size 0 bytes, sts_proto.o(.text.sts_proto_init))
 <BR><BR>[Stack]<UL><LI>Max Depth = 60<LI>Call Chain = sts_proto_init &rArr; sts_mem_init &rArr; sts_mem_refresh_feedback &rArr; __aeabi_fsub &rArr; __aeabi_fadd &rArr; _float_epilogue
 </UL>
 <BR>[Calls]<UL><LI><a href="#[c2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;sts_mem_init
@@ -1229,7 +1229,7 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[a1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;uart_comm_init
 </UL>
 
-<P><STRONG><a name="[c8]"></a>sts_proto_poll</STRONG> (Thumb, 564 bytes, Stack size 192 bytes, sts_proto.o(.text.sts_proto_poll))
+<P><STRONG><a name="[c8]"></a>sts_proto_poll</STRONG> (Thumb, 568 bytes, Stack size 192 bytes, sts_proto.o(.text.sts_proto_poll))
 <BR><BR>[Stack]<UL><LI>Max Depth = 260<LI>Call Chain = sts_proto_poll &rArr; sts_mem_read &rArr; sts_mem_refresh_feedback &rArr; __aeabi_fsub &rArr; __aeabi_fadd &rArr; _float_epilogue
 </UL>
 <BR>[Calls]<UL><LI><a href="#[cc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_memcpy
@@ -1244,7 +1244,7 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[a4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;uart_comm_poll
 </UL>
 
-<P><STRONG><a name="[ca]"></a>sts_proto_rx_frame_group</STRONG> (Thumb, 324 bytes, Stack size 32 bytes, sts_proto.o(.text.sts_proto_rx_frame_group))
+<P><STRONG><a name="[ca]"></a>sts_proto_rx_frame_group</STRONG> (Thumb, 326 bytes, Stack size 32 bytes, sts_proto.o(.text.sts_proto_rx_frame_group))
 <BR><BR>[Stack]<UL><LI>Max Depth = 32<LI>Call Chain = sts_proto_rx_frame_group
 </UL>
 <BR>[Calls]<UL><LI><a href="#[cc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_memcpy
