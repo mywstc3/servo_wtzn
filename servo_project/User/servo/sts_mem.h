@@ -12,6 +12,7 @@ void sts_mem_refresh_feedback(void);
 uint8_t sts_mem_get_error(void);
 uint8_t sts_mem_get_servo_id(void);
 uint8_t sts_mem_control_active(void);
+uint16_t sts_mem_get_min_start_force(void);
 void sts_mem_set_magnet_ok(uint8_t ok);
 
 #endif

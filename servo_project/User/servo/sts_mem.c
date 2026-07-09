@@ -1,5 +1,6 @@
 #include "sts_mem.h"
 #include "sts_mem_map.h"
+#include "sts_eeprom.h"
 #include "servo_config.h"
 
 #include <string.h>
@@ -116,6 +117,49 @@ static void sts_apply_pid_from_mem(void)
         (float)s_mem[STS_ADDR_SPEED_I] * STS_PID_SPEED_I_SCALE;
 }
 
+static void sts_mem_set_eprom_defaults(void)
+{
+    s_mem[STS_ADDR_SERVO_ID] = 1U;
+    s_mem[STS_ADDR_BAUD] = 0U;
+    s_mem[STS_ADDR_RETURN_LEVEL] = 1U;
+    put_u16_le(STS_ADDR_ANGLE_MIN_L, 0U);
+    put_u16_le(STS_ADDR_ANGLE_MAX_L, 4095U);
+    s_mem[STS_ADDR_TEMP_MAX] = 70U;
+    s_mem[STS_ADDR_VOLT_MAX] = 140U;
+    s_mem[STS_ADDR_VOLT_MIN] = 40U;
+    put_u16_le(STS_ADDR_TORQUE_MAX_L, 1000U);
+    s_mem[STS_ADDR_POS_P] = 5U;
+    s_mem[STS_ADDR_POS_D] = 5U;
+    s_mem[STS_ADDR_POS_I] = 0U;
+    put_u16_le(STS_ADDR_MIN_START_FORCE_L, 800U);
+    s_mem[STS_ADDR_SPEED_P] = 10U;
+    s_mem[STS_ADDR_SPEED_I] = 5U;
+}
+
+static uint8_t sts_mem_eprom_all_zero(void)
+{
+    uint8_t addr;
+
+    for (addr = STS_ADDR_EPROM_BEGIN; addr <= STS_ADDR_EPROM_END; addr++) {
+        if (s_mem[addr] != 0U) {
+            return 0U;
+        }
+    }
+    return 1U;
+}
+
+static uint8_t sts_write_touches_eprom(uint8_t addr, uint8_t len)
+{
+    uint8_t i;
+
+    for (i = 0U; i < len; i++) {
+        if (sts_eeprom_is_eprom_addr((uint8_t)(addr + i)) != 0U) {
+            return 1U;
+        }
+    }
+    return 0U;
+}
+
 static uint8_t sts_addr_writable(uint8_t addr)
 {
     if (addr < STS_ADDR_SERVO_ID) {
@@ -210,20 +254,11 @@ void sts_mem_init(void)
     s_mem[STS_ADDR_MODEL_VER_MAJOR] = 9U;
     s_mem[STS_ADDR_MODEL_VER_MINOR] = 3U;
 
-    s_mem[STS_ADDR_SERVO_ID] = 1U;
-    s_mem[STS_ADDR_BAUD] = 0U;
-    s_mem[STS_ADDR_RETURN_LEVEL] = 1U;
-    put_u16_le(STS_ADDR_ANGLE_MIN_L, 0U);
-    put_u16_le(STS_ADDR_ANGLE_MAX_L, 4095U);
-    s_mem[STS_ADDR_TEMP_MAX] = 70U;
-    s_mem[STS_ADDR_VOLT_MAX] = 140U;
-    s_mem[STS_ADDR_VOLT_MIN] = 40U;
-    put_u16_le(STS_ADDR_TORQUE_MAX_L, 1000U);
-    s_mem[STS_ADDR_POS_P] = 5U;
-    s_mem[STS_ADDR_POS_D] = 5U;
-    s_mem[STS_ADDR_POS_I] = 0U;
-    s_mem[STS_ADDR_SPEED_P] = 10U;
-    s_mem[STS_ADDR_SPEED_I] = 5U;
+    sts_eeprom_load(s_mem);
+    if (sts_mem_eprom_all_zero() != 0U) {
+        sts_mem_set_eprom_defaults();
+        sts_eeprom_save(s_mem);
+    }
 
     s_mem[STS_ADDR_TORQUE_SWITCH] = 1U;
     s_mem[STS_ADDR_GOAL_ACC] = 80U;
@@ -344,6 +379,10 @@ uint8_t sts_mem_write(uint8_t addr, const uint8_t *data, uint8_t len)
 
     if (wrote > 0U) {
         sts_on_write(addr, len);
+        if (s_mem[STS_ADDR_EPROM_LOCK] == 0U
+            && sts_write_touches_eprom(addr, len) != 0U) {
+            sts_eeprom_save(s_mem);
+        }
     }
     return wrote;
 }
@@ -361,6 +400,11 @@ uint8_t sts_mem_get_servo_id(void)
 uint8_t sts_mem_control_active(void)
 {
     return s_control_active;
+}
+
+uint16_t sts_mem_get_min_start_force(void)
+{
+    return get_u16_le(STS_ADDR_MIN_START_FORCE_L);
 }
 
 void sts_mem_set_magnet_ok(uint8_t ok)

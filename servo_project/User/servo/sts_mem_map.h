@@ -11,6 +11,8 @@
 #define STS_ADDR_MODEL_VER_MINOR     0x04U
 
 /* EPROM 配置区 */
+#define STS_ADDR_EPROM_BEGIN         0x05U
+#define STS_ADDR_EPROM_END           0x27U
 #define STS_ADDR_SERVO_ID            0x05U
 #define STS_ADDR_BAUD                0x06U
 #define STS_ADDR_RETURN_DELAY        0x07U
@@ -27,6 +29,7 @@
 #define STS_ADDR_POS_P               0x15U
 #define STS_ADDR_POS_D               0x16U
 #define STS_ADDR_POS_I               0x17U
+#define STS_ADDR_MIN_START_FORCE_L   0x18U   /* 最小启动力 2B，duty 0~3599 LE */
 #define STS_ADDR_SPEED_P             0x25U
 #define STS_ADDR_SPEED_I             0x27U
 

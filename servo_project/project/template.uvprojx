@@ -751,6 +751,16 @@
               <FilePath>..\User\servo\sts_mem.c</FilePath>
             </File>
             <File>
+              <FileName>sts_eeprom.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\servo\sts_eeprom.c</FilePath>
+            </File>
+            <File>
+              <FileName>sts_eeprom.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\User\servo\sts_eeprom.h</FilePath>
+            </File>
+            <File>
               <FileName>sts_mem.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\User\servo\sts_mem.h</FilePath>

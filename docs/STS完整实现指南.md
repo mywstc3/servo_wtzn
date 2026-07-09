@@ -13,18 +13,23 @@
 
 ---
 
-## 0. 当前工程进度（截至 2026-07-07）
+## 0. 当前工程进度（截至 2026-07-09）
+
+> 完整项目上下文见 **[项目总览-AI交接文档.md](./项目总览-AI交接文档.md)**
 
 | 模块 | 文件 | 状态 |
 |------|------|------|
-| UART 字节环 | `uart.c` | ✅ 已完成 |
-| BSP 半双工发送 | `bsp_uart.c` | ✅ 已完成 |
-| 协议组帧 + 帧环 | `sts_proto.c` | 🔶 收帧完成，PING 回复完成 |
-| 内存表 + 电机桥接 | `sts_mem.c` | ❌ 待实现 |
-| Flash EPROM 持久化 | — | ❌ 待实现（可参考 xuniduoji） |
-| main 集成 | `main.c` | 🔶 缺 `sts_mem_control_active` 判断 |
+| UART 字节环 + 半双工 | `uart.c` / `bsp_uart.c` | ✅ 已完成（1 Mbps，blocked 丢回波，ORE 处理） |
+| 协议组帧 + 帧环 | `sts_proto.c` | ✅ PING/READ/WRITE + 非本机 ID discard |
+| 内存表 + 电机桥接 | `sts_mem.c` | ✅ 0x80 表、反馈刷新、写副作用 |
+| 速度/扭矩单位 | `sts_mem.c` | ✅ raw×0.087 °/s，encode_load |
+| I2C/UART 并发 | `bap_i2c.c` | ✅ 已去掉 `__disable_irq` |
+| main 集成 | `main.c` | ✅ `sts_mem_control_active` + `DEBUG_JUSTFLOAT` |
+| Flash EPROM 持久化 | — | ❌ 未做（曾试 @0x0800FC00 后回退） |
+| 校准 0x0B / OFFSET | — | ❌ 未做 |
+| SYNC_READ/WRITE | — | ❌ 未做 |
 
-**你下一步：** 实现 `sts_mem`，并在 `sts_proto` 的 READ/WRITE 分支里调用它。
+**当前待办：** 多机总线超时验收；最高速度饱和确认；Flash/校准合入。
 
 ---
 

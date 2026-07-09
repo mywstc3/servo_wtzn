@@ -7,10 +7,14 @@
 #include "encoder.h"
 #include "systick.h"
 #include "time.h"
+#include "sts_mem.h"
+#include <math.h>
 
 static int16_t s_motor_duty;
 static uint8_t s_pos_stop_hold = 0U;
 static uint8_t s_pos_was_stop_hold = 0U;
+static float s_plan_last_target = 0.0f;
+static uint8_t s_plan_target_valid = 0U;
 
 static void motor_position_on_hold_exit(motor_context_t *ctx)
 {
@@ -56,6 +60,76 @@ static float motor_sqrtf(float x)
     return guess;
 }
 
+/* 参考 FOC speed_forword_stribe：按实际速度平滑衰减的摩擦前馈幅值 */
+static float motor_stribeck_feedforward_mag(float actual_speed)
+{
+    uint16_t start_duty = sts_mem_get_min_start_force();
+    float move_duty = (float)MOTOR_STRIBECK_MOVE_DUTY;
+    float abs_v = motor_fabsf(actual_speed);
+    float start_f = (float)start_duty;
+
+    if (start_duty == 0U) {
+        return 0.0f;
+    }
+    if (abs_v >= MOTOR_STRIBECK_SPEED_DEG) {
+        return move_duty;
+    }
+
+    return move_duty + (start_f - move_duty)
+        * expf(-abs_v / MOTOR_STRIBECK_SPEED_DEG);
+}
+
+static int16_t motor_apply_stribeck_ff(int16_t duty, float plan_speed, float actual_speed)
+{
+    float abs_plan = motor_fabsf(plan_speed);
+    float abs_actual = motor_fabsf(actual_speed);
+    float ff_mag;
+    float plan_scale;
+    int16_t ff_duty;
+
+    if (abs_plan < MOTOR_STRIBECK_PLAN_THRESH) {
+        return duty;
+    }
+    if (abs_actual > abs_plan * MOTOR_STRIBECK_TRACK_RATIO) {
+        return duty;
+    }
+
+    ff_mag = motor_stribeck_feedforward_mag(actual_speed);
+    if (ff_mag <= 0.0f) {
+        return duty;
+    }
+
+    plan_scale = abs_plan / MOTOR_STRIBECK_PLAN_FULL_DEG;
+    if (plan_scale > 1.0f) {
+        plan_scale = 1.0f;
+    }
+    ff_mag *= plan_scale;
+
+    ff_duty = (int16_t)((plan_speed >= 0.0f) ? ff_mag : -ff_mag);
+
+    /* 仅填补 PID 不足，避免 duty_pid + ff 叠加过冲 */
+    if (duty == 0) {
+        return ff_duty;
+    }
+    if (duty > 0 && ff_duty > 0 && duty < ff_duty) {
+        return ff_duty;
+    }
+    if (duty < 0 && ff_duty < 0 && duty > ff_duty) {
+        return ff_duty;
+    }
+    return duty;
+}
+
+static void motor_set_duty_from_speed_loop(motor_context_t *context)
+{
+    int16_t duty = (int16_t)context->motor_pid.motor_speed_pid.output;
+
+    duty = motor_apply_stribeck_ff(duty,
+        context->control.plan_speed,
+        context->sensor.motor_speed_degree);
+    motor_set_duty(duty);
+}
+
 void motor_init(void)
 {
     s_motor_duty = 0;
@@ -99,8 +173,10 @@ void speed_control_plan_reset(motor_control_context_t *ctx, float current_speed)
 void angle_control_plan_reset(motor_control_context_t *ctx, float current_angle)
 {
     ctx->plan_angle = current_angle;
+    ctx->plan_start_angle = current_angle;
     ctx->plan_speed = 0.0f;
     s_pos_stop_hold = 1U;
+    s_plan_target_valid = 0U;
 }
 
 void motor_sync_target_to_actual(motor_context_t *ctx)
@@ -171,17 +247,24 @@ void speed_control_plan(motor_control_context_t *ctx)
 void angle_control_plan(motor_control_context_t *ctx, float *motor_angle_multi_degree, float *current_speed_degree)
 {
     const float dt = 1.0f / (float)POSITION_PID_UPDATE_HZ;
-    float v = ctx->plan_speed;
     float v_max = ctx->target_speed;
     float a = ctx->target_a_speed;
     float dist;
     float dir;
-    float s;
+    float s_rem;
+    float s_total;
+    float d_traveled;
+    float s_dec;
+    float s_min_trap;
+    float v_peak;
+    float s_half;
+    float v;
     float v_along;
-    float v_stop;
-    float v_cmd;
-    float v_cmd_along;
+    float da;
+    uint8_t do_accel;
+    uint8_t do_decel;
 
+    (void)motor_angle_multi_degree;
     (void)current_speed_degree;
 
     if (a <= 0.0f || v_max <= 0.0f) {
@@ -189,44 +272,92 @@ void angle_control_plan(motor_control_context_t *ctx, float *motor_angle_multi_d
         return;
     }
 
-    dist = ctx->target_angle - *motor_angle_multi_degree;
-    dir = (dist >= 0.0f) ? 1.0f : -1.0f;
-    s = motor_fabsf(dist);
+    if (s_plan_target_valid == 0U
+        || ctx->target_angle != s_plan_last_target) {
+        ctx->plan_start_angle = ctx->plan_angle;
+        s_plan_last_target = ctx->target_angle;
+        s_plan_target_valid = 1U;
+    }
 
-    if (s < POS_PLAN_DEADZONE_DEG) {
+    dist = ctx->target_angle - ctx->plan_angle;
+    dir = (dist >= 0.0f) ? 1.0f : -1.0f;
+    s_rem = motor_fabsf(dist);
+    s_total = motor_fabsf(ctx->target_angle - ctx->plan_start_angle);
+    if (s_total < s_rem) {
+        s_total = s_rem;
+    }
+
+    if (s_rem < POS_PLAN_DEADZONE_DEG) {
         ctx->plan_speed = 0.0f;
-        ctx->plan_angle = *motor_angle_multi_degree;
+        ctx->plan_angle = ctx->target_angle;
         return;
     }
 
+    d_traveled = s_total - s_rem;
+    s_dec = (v_max * v_max) / (2.0f * a);
+    s_min_trap = (v_max * v_max) / a;
+    da = a * dt;
+
+    if (s_total >= s_min_trap) {
+        v_peak = v_max;
+        if (s_rem <= s_dec) {
+            do_decel = 1U;
+            do_accel = 0U;
+        } else {
+            do_decel = 0U;
+            v_along = ctx->plan_speed * dir;
+            if (v_along < 0.0f) {
+                v_along = 0.0f;
+            }
+            do_accel = (v_along < (v_peak - da)) ? 1U : 0U;
+        }
+    } else {
+        v_peak = motor_sqrtf(a * s_total);
+        if (v_peak > v_max) {
+            v_peak = v_max;
+        }
+        s_half = s_total * 0.5f;
+        if (d_traveled < s_half) {
+            do_accel = 1U;
+            do_decel = 0U;
+        } else {
+            do_accel = 0U;
+            do_decel = 1U;
+        }
+    }
+
+    v = ctx->plan_speed;
     v_along = v * dir;
     if (v_along < 0.0f) {
         v_along = 0.0f;
     }
 
-    /* 剩余距离 s 内能刹停的最高速度：v = sqrt(2*a*s) */
-    v_stop = motor_sqrtf(2.0f * a * s);
-    v_cmd = v_stop;
-    if (v_cmd > v_max) {
-        v_cmd = v_max;
-    }
-
-    if (v_along < v_cmd - a * dt) {
-        v_cmd_along = v_along + a * dt;
-    } else if (v_along > v_cmd + a * dt) {
-        v_cmd_along = v_along - a * dt;
+    if (do_decel != 0U) {
+        if (v_along > da) {
+            v_along -= da;
+        } else {
+            v_along = 0.0f;
+        }
+    } else if (do_accel != 0U) {
+        v_along += da;
+        if (v_along > v_peak) {
+            v_along = v_peak;
+        }
     } else {
-        v_cmd_along = v_cmd;
+        v_along = v_peak;
     }
 
-    if (v_cmd_along > v_max) {
-        v_cmd_along = v_max;
-    }
-    if (v_cmd_along < 0.0f) {
-        v_cmd_along = 0.0f;
-    }
+    v = dir * v_along;
+    ctx->plan_speed = v;
+    ctx->plan_angle += v * dt;
 
-    ctx->plan_speed = dir * v_cmd_along;
+    if (dir > 0.0f) {
+        if (ctx->plan_angle > ctx->target_angle) {
+            ctx->plan_angle = ctx->target_angle;
+        }
+    } else if (ctx->plan_angle < ctx->target_angle) {
+        ctx->plan_angle = ctx->target_angle;
+    }
 }
 
 void motor_control(motor_context_t *context)
@@ -244,7 +375,7 @@ void motor_control(motor_context_t *context)
                 speed_control_plan(&context->control);
                 speed_pid(&context->motor_pid.motor_speed_pid, &context->control.plan_speed
                     , &context->sensor.motor_speed_degree);
-                    motor_set_duty((int16_t)context->motor_pid.motor_speed_pid.output);
+                    motor_set_duty_from_speed_loop(context);
                     context->flag.motor_speed_pid_flag = FALSE;
                 }
             break;
@@ -288,7 +419,7 @@ void motor_control(motor_context_t *context)
                 speed_pid(&context->motor_pid.motor_speed_pid,
                         &context->control.plan_speed,
                         &context->sensor.motor_speed_degree);
-                motor_set_duty((int16_t)context->motor_pid.motor_speed_pid.output);
+                motor_set_duty_from_speed_loop(context);
                 context->flag.motor_speed_pid_flag = FALSE;
             }
             break;

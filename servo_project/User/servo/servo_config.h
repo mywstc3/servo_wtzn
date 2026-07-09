@@ -4,9 +4,16 @@
 #include "gd32f1x0.h"
 #include <stdint.h>
 
-#define POS_PLAN_DEADZONE_DEG   1.0f    /* 停止轨迹规划，进入位置环精调 (°) */
+#define POS_PLAN_DEADZONE_DEG   1.0f    /* 进入精调区的位置误差 (°) */
 #define POS_STOP_HYSTERESIS_DEG 0.25f    /* 退出精调区滞回 (°) */
 #define POS_TRIM_SPEED_MAX      60.0f   /* 精调区位置 PD 最大速度输出 (°/s) */
+
+/* Stribeck 摩擦补偿：静止≈start_duty，随实际速度指数衰减；仅填补 PID 不足 */
+#define MOTOR_STRIBECK_SPEED_DEG     8.0f   /* 衰减特征速度 (°/s) */
+#define MOTOR_STRIBECK_MOVE_DUTY       0U     /* 运动摩擦 duty */
+#define MOTOR_STRIBECK_PLAN_THRESH     3.0f   /* |plan_speed| 低于此值不补偿 (°/s) */
+#define MOTOR_STRIBECK_PLAN_FULL_DEG   45.0f  /* plan 达此速度时用满补偿 */
+#define MOTOR_STRIBECK_TRACK_RATIO     0.75f  /* 实际速度达 plan 此比例后退出 */
 
 typedef struct
 {
@@ -83,6 +90,7 @@ typedef struct
     float target_electricity;
     float plan_speed;
     float plan_angle;
+    float plan_start_angle;
 } motor_control_context_t;
 
 
