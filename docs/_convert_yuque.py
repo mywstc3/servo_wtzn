@@ -1,5 +1,11 @@
 # -*- coding: utf-8 -*-
-"""Convert 功能实现任务拆解.md to Yuque-compatible markdown."""
+"""Convert 功能实现任务拆解.md to Yuque-compatible markdown.
+
+Note: The primary Yuque publish doc is ``功能实现任务拆解-语雀版.md`` (v3.x, includes
+hardware analysis). That file is maintained manually and synced from §0/§8 of the
+local ``功能实现任务拆解.md`` plus ``项目总览-AI交接文档.md``. This script converts the
+simpler v2.0 local format only; run ``_fix_yuque_links.py`` after if using its output.
+"""
 import re
 from pathlib import Path
 
@@ -69,7 +75,7 @@ def main() -> None:
 > 板卡：16999-PS26040802（GD32F130 + AS5600 + EG2104 H 桥）  
 > 工程路径：`servo_project/`  
 > 硬件参考：硬件说明-16999-PS26040802.md（同知识库内链接）  
-> 编写日期：2026-06-23 · 文档版本：v2.0-语雀
+> 编写日期：2026-06-23 · 文档版本：v2.1-语雀（由 §0 快照 2026-07-10 同步）
 
 [TOC]
 
@@ -94,11 +100,18 @@ def main() -> None:
     text = text.replace("[子任务名称](#x-xx-1)", "[子任务名称](#X-XX-1-子任务名称)")
 
     # 附录修订记录
-    if "v2.0-语雀" not in text:
+    if "v2.1-语雀" not in text:
         text = text.replace(
             "| 2026-06-24 | v2.0 | 重构：任务总表（大/小/子任务+状态+跳转）、统一详情模板、附录模板 |",
             "| 2026-06-24 | v2.0 | 重构：任务总表（大/小/子任务+状态+跳转）、统一详情模板、附录模板 |\n"
+            "| 2026-06-24 | v2.0-语雀 | 语雀适配版：去 HTML 锚点、代码路径改行内代码、[TOC] 目录 |\n"
+            "| 2026-07-10 | v2.1-语雀 | 由本地 §0/§8 进度快照同步（STS/Flash/校准/T 型/Stribeck）",
+        )
+    elif "2026-07-10 | v2.1-语雀" not in text:
+        text = text.replace(
             "| 2026-06-24 | v2.0-语雀 | 语雀适配版：去 HTML 锚点、代码路径改行内代码、[TOC] 目录 |",
+            "| 2026-06-24 | v2.0-语雀 | 语雀适配版：去 HTML 锚点、代码路径改行内代码、[TOC] 目录 |\n"
+            "| 2026-07-10 | v2.1-语雀 | 由本地 §0/§8 进度快照同步（STS/Flash/校准/T 型/Stribeck）",
         )
 
     out = Path(__file__).parent / "功能实现任务拆解-语雀版.md"

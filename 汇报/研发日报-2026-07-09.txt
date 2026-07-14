@@ -1,0 +1,65 @@
+研发团队工作日报
+
+日期：2026年7月9日（周四）
+项目：飞特 STS3215c018 舵机 / GD32F130 伺服固件
+
+一、昨日遗留工作闭环
+
+7/8 遗留的 RX discard 已合入基线（02a928d）；Flash EPROM 与中位校准曾在 7/8 试做后回退。今日在稳定基线上重新合入 Flash、中位校准，并推进 T 型轨迹规划、Stribeck 补偿与文档同步；速度观测 S-01 代码仍留在 feature/speed-ls-observation 分支。
+
+二、今日完成工作
+
+1、项目文档整合与 AI 交接（上午）
+整合工程现状，新建 docs/项目总览-AI交接文档.md（12 章：硬件/架构/STS/调试/Git/待办）；同步更新 README、STS完整实现指南 §0、功能实现任务拆解 §0 进度快照，便于发给新 AI 快速接手。
+
+2、PID 稳定性评估方案（上午，仅文档）
+讨论瞬时指标不足以评估稳定性，编写 docs/PID稳定性评估方案.md（Phase 0 离线录波 + Phase 1 MCU 滑动窗口指标）；同步更新 AI 交接文档，代码未改。
+
+3、速度观测探索与分支管理（上午~下午初）
+编码器/速度观测从 100 Hz 提至 1000 Hz；speed.c 增加中值+滑动平均+低通三层滤波。实机 ch2 出现 0↔88 °/s 量化抖动，分析根因：单步差分 + 12-bit 量化在高频下噪声放大。编写 docs/速度观测改进方案.md（S-01 线性回归、S-03 真实 Δt 等六条路径）。实现后保存至 feature/speed-ls-observation（aaa0a61），随后回退到 02a928d 继续控制线开发；速度观测代码未合并到主开发线。
+
+4、T 型/三角位置轨迹规划（motor.c，下午~晚间）
+三角波实机（0~90°、步长 2、50 ms）暴露 plan_speed 与实测速度严重脱节、减速段非按加速度下降。根因：旧规划基于实际角误差，且 |误差|≤1° 立即进精调导致 plan 骤降；步长 2 时频繁重规划比步长 10 更卡顿。重写 angle_control_plan：基于 plan_angle 积分（非实际角）；target_angle 变化时以 plan_angle 重开一段。长行程 S≥V²/A 走梯形加减速，短行程 v_peak=√(AS) 半程加减速；|误差|≤1° 立即进精调区（不检查 plan_speed），带 0.25° 滞回退出。
+
+5、Stribeck 静摩擦补偿（motor.c + servo_config.h）
+参考 FOC speed_forword_stribe，motor_apply_stribeck_ff 仅填补 PID 不足。启动力来自 STS 0x18~0x19（MIN_START_FORCE），默认 duty=800（满量程 3599）。三角波位置目标下抖动问题经 Stribeck 补偿后改善。
+
+6、Flash EPROM 持久化（sts_eeprom.c + sts_mem.c）
+参考 xuniduoji servo_memory.c，拆分为独立模块 sts_eeprom.c（xuniduoji 为同文件 static 函数）。Flash 页 0x0800FC00，魔数 0x55AA，保存 0x05~0x27 共 35 字节。启动加载 → 全零写默认并 save；EPROM_LOCK(0x37)==0 且写入 EPROM 区时自动保存。Keil 工程已加入 sts_eeprom.c。
+
+7、中位校准（sts_mem.c + sts_proto.c，晚间）
+参考 xuniduoji protocol.c：POS_OFFSET @0x1F（EPROM/Flash）；PRESENT_POS=(raw+offset) mod 4096；GOAL_POS 减 offset 后映射 target_angle。实现 CALIB(0x0B)、RESET(0x0A)、TORQUE_SWITCH=128 三种入口；校准后 motor_sync_target_to_actual。
+
+8、文档同步
+从 feature/speed-ls-observation 同步速度观测改进方案、PID 稳定性评估方案；更新项目总览、STS 实现/协议指南、功能任务拆解、README；补充 Flash §5.6、中位校准 §5.7 与测试用例。
+
+9、Git 版本保存
+新建分支 feature/traj-stribeck-flash，提交 4c15bb9（T 型+Stribeck+Flash+文档）；中位校准为 4c15bb9 之后的工作区改动，待下一提交。
+
+三、今日核心工作产出总结
+
+全天完成：AI 交接文档、PID/速度观测方案文档、T 型轨迹规划、Stribeck 补偿、Flash EPROM、中位校准合入与文档同步。feature/traj-stribeck-flash @4c15bb9 已保存 Flash 等改动；校准代码在 4c15bb9 之后的工作区。速度观测 S-01 代码在 feature/speed-ls-observation，未合并。
+
+四、今日工作卡点 & 技术问题
+
+问题现象：（1）速度观测 ch2 仍有 0↔88 °/s 量化抖动（1000 Hz 单步差分 + 12-bit 量化）；（2）三角波步长 2 时 plan 频繁重开导致卡顿，步长 10 更顺滑；（3）旧规划路径与实际路径不一致，精调区入口导致 plan 骤降；（4）Flash/校准断电重启验收未做；（5）多机超时、~100°/s 饱和仍待验证。
+已尝试解决方法：T 型规划基于 plan_angle 积分；Stribeck 按启动力填补；Flash/校准模块化合入 xuniduoji 逻辑；速度观测方案文档化，代码留独立分支。
+当前阻塞程度：控制、Flash、校准代码已就绪；速度观测 S-01 与实机验收待续。
+是否需要支援：无。
+
+五、需对外协同事项
+
+无
+
+六、明日工作计划
+
+1、（P1）Flash + 校准断电保持验收：解锁 0x37 → CALIB 或改 EPROM → 重启验证
+2、（P1）速度观测 S-01+S-03 从 feature/speed-ls-observation 合并
+3、（P1）多机 discard 与 ~100°/s 饱和实机验收
+4、（P2）提交含中位校准的 git 版本；位置环整参（PID Phase 0 基线录波）
+
+七、其他备注
+
+当前 Git 分支：feature/traj-stribeck-flash（HEAD @4c15bb9 + 工作区中位校准）
+其他分支：feature/speed-ls-observation（速度观测）、main（cb0c079）、backup/sts-mem-wip-2026-07-07
+默认加速度：motor_test 2000 °/s²；STS GOAL_ACC=80 → 696 °/s²

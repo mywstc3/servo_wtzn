@@ -46,6 +46,7 @@ int main(void)
                     motor_context.sensor.motor_speed_degree,
                     motor_context.control.plan_speed,
                     motor_context.control.target_angle,
+                    motor_context.control.plan_angle,
                     (float)motor_get_duty()
                 );
             }

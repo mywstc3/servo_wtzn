@@ -11,7 +11,9 @@ void motor_set_duty(int16_t duty);
 int16_t motor_get_duty(void);
 
 void speed_control_plan_reset(motor_control_context_t *ctx, float current_speed);
-void angle_control_plan_reset(motor_control_context_t *ctx, float current_angle);
+void angle_control_plan_reset(motor_control_context_t *ctx,
+                              float current_angle,
+                              float current_speed);
 void speed_control_plan(motor_control_context_t *ctx);
 void angle_control_plan(motor_control_context_t *ctx,
                         float *motor_angle_multi_degree,

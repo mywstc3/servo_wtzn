@@ -24,7 +24,8 @@ uint8_t encoder_update(void)
         return 0U;
     }
 
-    raw = (uint16_t)(((uint16_t)buf[3] << 8) | buf[4]) & 0x0FFFU;
+    raw = (uint16_t)(((uint16_t)buf[1] << 8) | buf[2]) & 0x0FFFU;
+    motor_context.sensor.motor_encoder_raw_u16 = raw;
     motor_context.sensor.motor_encoder_raw = (float)raw;
     motor_context.sensor.motor_encoder_degree = (float)raw * 360.0f / 4096.0f;
     motor_context.sensor.motor_encoder_radian =

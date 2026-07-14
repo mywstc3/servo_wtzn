@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
-"""Fix Yuque doc: remove broken hand-written anchor links."""
+"""Fix Yuque doc: remove broken hand-written anchor links.
+
+Applied to ``功能实现任务拆解-语雀版.md`` (v3.x rich doc). After manual content
+updates, run this script to strip stale ``[text](#anchor)`` links before re-import.
+"""
 import re
 from pathlib import Path
 
@@ -74,14 +78,15 @@ text = text.replace(
 )
 
 # Revision
-if "v3.2-语雀" not in text:
+if "v3.4-语雀" not in text:
     text = text.replace(
-        "| 2026-06-24 | v3.1-语雀 | 移除 `<details>` 折叠块，子任务改为标题+表格直接展开（修复语雀渲染） |",
-        "| 2026-06-24 | v3.1-语雀 | 移除 `<details>` 折叠块，子任务改为标题+表格直接展开（修复语雀渲染） |\n"
-        "| 2026-06-24 | v3.2-语雀 | 移除手写锚点链接，改用语雀大纲/TOC 导航（修复新开页问题） |",
+        "| 2026-07-02 | v3.3-语雀 | 同步固件进度：M-01 完成；M-02/03/05、C-01/03 推进中；双环 PID+轨迹规划；USART1 1Mbps；STS 协议为 C-02 下一步；更新 §5 状态表、§6 代码路径、§9 工程快照 |",
+        "| 2026-07-02 | v3.3-语雀 | 同步固件进度：M-01 完成；M-02/03/05、C-01/03 推进中；双环 PID+轨迹规划；USART1 1Mbps；STS 协议为 C-02 下一步；更新 §5 状态表、§6 代码路径、§9 工程快照 |\n"
+        "| 2026-07-10 | v3.4-语雀 | 同步 7/9 工程：STS 协议栈、Flash EPROM、中位校准、T 型轨迹、Stribeck |",
     )
 
-text = text.replace("· 文档版本：v3.0-语雀", "· 文档版本：v3.2-语雀")
+text = text.replace("· 文档版本：v3.2-语雀", "· 文档版本：v3.4-语雀")
+text = text.replace("· 文档版本：v3.3-语雀", "· 文档版本：v3.4-语雀")
 
 p.write_text(text, encoding="utf-8")
 print("fixed:", p)

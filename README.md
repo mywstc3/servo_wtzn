@@ -17,9 +17,12 @@
 - 用户源码：`servo_project/User/`
 - 参考工程（协议已实现）：`E:\wtzn\xuniduoji`
 
-## 当前进度（2026-07-09）
+## 当前进度（2026-07-10）
 
 - ✅ 电机驱动、ADC、AS5600 编码器、位置/速度闭环
 - ✅ STS 协议栈（PING/READ/WRITE + 0x80 内存表 + 电机桥接）
-- 🔶 多机总线稳定性、最高速度饱和、位置环整参
-- ❌ Flash EPROM 持久化、校准指令
+- ✅ T 型/三角位置轨迹规划、Stribeck 静摩擦补偿
+- ✅ Flash EPROM 持久化（`sts_eeprom.c`，`0x0800FC00`）
+- 🔶 多机总线稳定性、最高速度饱和、位置环整参、速度观测 S-01
+- ✅ 中位校准（CALIB 0x0B、TORQUE_SWITCH=128、OFFSET @0x1F Flash 保存）
+- ❌ RESTORE/出厂恢复

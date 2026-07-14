@@ -38,6 +38,7 @@
 ".\objects\bsp_dma.o"
 ".\objects\init.o"
 ".\objects\motor.o"
+".\objects\motor_follow.o"
 ".\objects\pid.o"
 ".\objects\time.o"
 ".\objects\uart.o"
@@ -49,6 +50,7 @@
 ".\objects\motor_test.o"
 ".\objects\sts_proto.o"
 ".\objects\sts_mem.o"
+".\objects\sts_eeprom.o"
 --library_type=microlib --strict --scatter ".\Objects\template.sct"
 --summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
 --info sizes --info totals --info unused --info veneers

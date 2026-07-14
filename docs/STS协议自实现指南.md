@@ -133,8 +133,8 @@ RX: FF FF 01 04 00 [data0] [data1] CS
 | `STS_INST_RECOVERY` | 0x06 | 恢复出厂 | 后期 |
 | `STS_INST_REBOOT` | 0x08 | 重启 | 后期 |
 | `STS_INST_BACKUP` | 0x09 | 备份 EPROM | 后期 |
-| `STS_INST_RESET` | 0x0A | 复位 | 后期 |
-| `STS_INST_CALIB` | 0x0B | 校准 | 后期 |
+| `STS_INST_RESET` | 0x0A | 复位 offset | ✅ |
+| `STS_INST_CALIB` | 0x0B | 中位校准 | ✅ |
 | `STS_INST_SYNC_READ` | 0x82 | 同步读 | 后期 |
 | `STS_INST_SYNC_WRITE` | 0x83 | 同步写 | 后期 |
 
@@ -266,7 +266,7 @@ int16_t get_u16_le(uint8_t addr);
 | 区域 | 地址 | 访问 |
 |------|------|------|
 | 版本信息 | 0x00~0x04 | 只读 |
-| EPROM 配置 | 0x05~0x27, 0x37 | 可写（掉电不保存，RAM 模拟） |
+| EPROM 配置 | 0x05~0x27, 0x37 | 可写；`0x05~0x27` 含 `POS_OFFSET(0x1F)`，Flash 掉电保存 |
 | SRAM 控制 | 0x28~0x36 | 可写，写后触发电机动作 |
 | SRAM 反馈 | 0x38~0x47 | 只读（由 refresh 填充） |
 | 出厂参数 | 0x50~0x56 | 只读 |
@@ -376,7 +376,7 @@ uint8_t sts_mem_write(uint8_t addr, const uint8_t *data, uint8_t len);
 
 | 寄存器 | 地址 | 副作用 |
 |--------|------|--------|
-| POS_OFFSET | 0x1F | 更新 `pos_offset_deg` |
+| POS_OFFSET | 0x1F | `offset = target_raw - encoder_raw`；影响 PRESENT/GOAL 坐标 |
 | POS_P/D/I, SPEED_P/I | 0x15~0x17, 0x25, 0x27 | 更新 `motor_pid` 增益 |
 | TORQUE_SWITCH | 0x28 | 见下表 |
 | RUN_MODE | 0x21 | 切换控制模式 |
@@ -391,7 +391,7 @@ uint8_t sts_mem_write(uint8_t addr, const uint8_t *data, uint8_t len);
 | 0 | `motor_disable()`，`mode=null` |
 | 1 | `motor_enable()` |
 | 2 | 使能 + 速度模式，目标速度 0 |
-| 128 | 使能，当前位置设为中点 2048 对应角度 |
+| 128 | `sts_mem_calibrate_midpoint(2048)`，TORQUE_SWITCH 写回 1，`motor_enable()` |
 
 **RUN_MODE 值：**
 
@@ -431,7 +431,7 @@ spd_ki = mem[SPEED_I] * (0.5/128);
 
 | 寄存器 | 来源 |
 |--------|------|
-| PRESENT_POS 0x38 | `deg_to_pos(motor_angle_multi_degree)` |
+| PRESENT_POS 0x38 | `(encoder_raw + offset) mod 4096` |
 | PRESENT_SPEED 0x3A | `degs_to_speed(motor_speed_degree)` |
 | PRESENT_LOAD 0x3C | `encode_load(motor_get_duty())` |
 | PRESENT_VOLT 0x3E | `v_bus / 0.1`，限 254 |
@@ -523,7 +523,8 @@ typedef struct {
 
 - REG_WRITE + ACTION
 - SYNC_READ / SYNC_WRITE
-- EPROM 掉电保存（Flash）
+- EPROM 掉电保存（Flash）— ✅ `sts_eeprom.c` @0x0800FC00
+- 中位校准 CALIB/RESET/OFFSET — ✅ `sts_mem_calibrate_midpoint()`
 - 真实温度传感器
 
 ---
@@ -539,9 +540,11 @@ typedef struct {
 | 5 | WRITE ID=2 再 READ 0x05 | ID 变为 2 |
 | 6 | WRITE TORQUE_SWITCH=0 | 电机失能 |
 | 7 | WRITE GOAL_POS=2048+offset | 电机转约 90° |
-| 8 | 拔掉磁编 | PING Err 含 MAGNET 位，电机失能 |
-| 9 | 广播 PING 0xFE | 有回复 |
-| 10 | 广播 WRITE 0xFE | 无回复 |
+| 8 | CALIB 0x0B（当前位置→2048） | READ 0x38 接近 2048；offset 写入 0x1F |
+| 9 | RESET 0x0A | offset 清零，READ 0x38 回到原始角 |
+| 10 | 广播 PING 0xFE | 有回复 |
+| 11 | 拔掉磁编 | PING Err 含 MAGNET 位，电机失能 |
+| 12 | 广播 WRITE 0xFE | 无回复 |
 
 **常用 READ 当前位置：**
 

@@ -108,7 +108,8 @@ static void motor_cmd_apply(motor_cmd_t *cmd)
         {
             s_pos_home = motor_context.sensor.motor_angle_multi_degree;
             s_pos_home_set = 1U;
-            angle_control_plan_reset(ctrl, s_pos_home);
+            angle_control_plan_reset(ctrl, s_pos_home,
+                motor_context.sensor.motor_speed_degree);
         }
         ctrl->target_angle = cmd->target;
         break;
@@ -147,7 +148,8 @@ void motor_test_poll(void)
             else if (motor_cmd.mode == motor_cmd_position)
             {
                 angle_control_plan_reset(&motor_context.control,
-                    motor_context.sensor.motor_angle_multi_degree);
+                    motor_context.sensor.motor_angle_multi_degree,
+                    motor_context.sensor.motor_speed_degree);
             }
         }
         s_last_mode = motor_cmd.mode;

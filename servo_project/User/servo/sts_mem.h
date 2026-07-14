@@ -14,5 +14,7 @@ uint8_t sts_mem_get_servo_id(void);
 uint8_t sts_mem_control_active(void);
 uint16_t sts_mem_get_min_start_force(void);
 void sts_mem_set_magnet_ok(uint8_t ok);
+void sts_mem_calibrate_midpoint(uint16_t target_raw);
+void sts_mem_reset_offset(void);
 
 #endif

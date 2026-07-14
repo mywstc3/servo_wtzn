@@ -13,6 +13,8 @@
 #define STS_INST_PING           0x01U
 #define STS_INST_READ           0x02U
 #define STS_INST_WRITE          0x03U
+#define STS_INST_RESET          0x0AU
+#define STS_INST_CALIB          0x0BU
 
 typedef enum {
     sts_frame_state_idle = 0,

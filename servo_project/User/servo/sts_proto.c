@@ -293,6 +293,45 @@ static void sts_proto_process_one_frame(const sts_frame_t *frame)
             uart_comm_tx(tx_data, 6U);
         }
     }
+
+    if (inst == STS_INST_RESET) {
+        sts_mem_reset_offset();
+        err = sts_mem_get_error();
+        if (need_rsp != 0U) {
+            uint8_t tx_data[6];
+            uint8_t plen = 2U;
+            tx_data[0] = STS_HEADER_0;
+            tx_data[1] = STS_HEADER_1;
+            tx_data[2] = id_rsp;
+            tx_data[3] = plen;
+            tx_data[4] = err;
+            tx_data[5] = sts_checksum(&tx_data[2], (uint8_t)(1U + plen));
+            uart_comm_tx(tx_data, 6U);
+        }
+        return;
+    }
+
+    if (inst == STS_INST_CALIB) {
+        uint16_t target = STS_POS_MIDPOINT_RAW;
+
+        if (frame->length >= 4U) {
+            target = (uint16_t)frame->data[1]
+                | ((uint16_t)frame->data[2] << 8);
+        }
+        sts_mem_calibrate_midpoint(target);
+        err = sts_mem_get_error();
+        if (need_rsp != 0U) {
+            uint8_t tx_data[6];
+            uint8_t plen = 2U;
+            tx_data[0] = STS_HEADER_0;
+            tx_data[1] = STS_HEADER_1;
+            tx_data[2] = id_rsp;
+            tx_data[3] = plen;
+            tx_data[4] = err;
+            tx_data[5] = sts_checksum(&tx_data[2], (uint8_t)(1U + plen));
+            uart_comm_tx(tx_data, 6U);
+        }
+    }
 }
 
 static void sts_proto_process_frames(void)

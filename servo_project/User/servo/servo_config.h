@@ -5,15 +5,30 @@
 #include <stdint.h>
 
 #define POS_PLAN_DEADZONE_DEG   1.0f    /* 进入精调区的位置误差 (°) */
-#define POS_STOP_HYSTERESIS_DEG 0.25f    /* 退出精调区滞回 (°) */
+#define POS_STOP_HYSTERESIS_DEG 0.25f   /* 退出精调区滞回 (°) */
 #define POS_TRIM_SPEED_MAX      60.0f   /* 精调区位置 PD 最大速度输出 (°/s) */
+#define POS_PLAN_ARRIVE_DEG     0.05f   /* 粗调规划角到达判定 (°) */
+#define POS_DECEL_HYSTERESIS    1.05f   /* 减速区滞回，减轻加减速边界抖振 */
 
-/* Stribeck 摩擦补偿：静止≈start_duty，随实际速度指数衰减；仅填补 PID 不足 */
-#define MOTOR_STRIBECK_SPEED_DEG     8.0f   /* 衰减特征速度 (°/s) */
-#define MOTOR_STRIBECK_MOVE_DUTY       0U     /* 运动摩擦 duty */
-#define MOTOR_STRIBECK_PLAN_THRESH     3.0f   /* |plan_speed| 低于此值不补偿 (°/s) */
-#define MOTOR_STRIBECK_PLAN_FULL_DEG   45.0f  /* plan 达此速度时用满补偿 */
-#define MOTOR_STRIBECK_TRACK_RATIO     0.75f  /* 实际速度达 plan 此比例后退出 */
+/* 高频 GOAL 跟随子模式：协议仍为位置模式，内部不 reset、禁用精调 */
+#define MOTOR_FOLLOW_STREAM_DT_MAX_MS  100U
+#define MOTOR_FOLLOW_IDLE_DT_MS        400U
+#define MOTOR_FOLLOW_STEP_MAX_DEG      10.0f
+#define MOTOR_FOLLOW_STEP_MIN_DEG      0.05f
+#define MOTOR_FOLLOW_JUMP_DEG          25.0f
+#define MOTOR_FOLLOW_ENTER_COUNT       4U
+#define MOTOR_FOLLOW_EXIT_COUNT        2U
+#define MOTOR_FOLLOW_V_LPF_ALPHA       0.35f
+#define MOTOR_FOLLOW_V_MARGIN          1.3f
+#define MOTOR_FOLLOW_V_MIN_DEG         5.0f
+#define MOTOR_FOLLOW_V_CAP_DEG         120.0f
+
+/* Stribeck：仅“零速启动 / 换向”边沿 oneshot；位置精调区强制关闭 */
+#define MOTOR_STRIBECK_PLAN_THRESH       2.0f   /* |plan| 边沿判定阈 (°/s) */
+#define MOTOR_STRIBECK_ENTRY_SPEED_DEG   5.0f   /* 零速启动：|actual| 须低于此 */
+#define MOTOR_STRIBECK_EXIT_SPEED_DEG    12.0f  /* 同向超此速度退出助推 */
+#define MOTOR_STRIBECK_MIN_HOLD_MS       20U    /* 最短保持 */
+#define MOTOR_STRIBECK_RAMP_DUTY_S       6000.0f /* 退出斜坡；入助推首拍满量 */
 
 typedef struct
 {
@@ -61,6 +76,7 @@ typedef struct
     float motor_adc_v_bus;
     float motor_adc_i_bus_offset;
     float motor_adc_v_bus_offset;
+    uint16_t motor_encoder_raw_u16;
     float motor_encoder_raw;
     float motor_encoder_radian;
     float motor_encoder_degree;

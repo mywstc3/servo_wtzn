@@ -13,23 +13,24 @@
 
 ---
 
-## 0. 当前工程进度（截至 2026-07-09）
+## 0. 当前工程进度（截至 2026-07-14）
 
 > 完整项目上下文见 **[项目总览-AI交接文档.md](./项目总览-AI交接文档.md)**
 
 | 模块 | 文件 | 状态 |
 |------|------|------|
 | UART 字节环 + 半双工 | `uart.c` / `bsp_uart.c` | ✅ 已完成（1 Mbps，blocked 丢回波，ORE 处理） |
-| 协议组帧 + 帧环 | `sts_proto.c` | ✅ PING/READ/WRITE + 非本机 ID discard |
-| 内存表 + 电机桥接 | `sts_mem.c` | ✅ 0x80 表、反馈刷新、写副作用 |
-| 速度/扭矩单位 | `sts_mem.c` | ✅ raw×0.087 °/s，encode_load |
+| 协议组帧 + 帧环 | `sts_proto.c` | ✅ PING/READ/WRITE/RESET/CALIB + 非本机 ID discard |
+| 内存表 + 电机桥接 | `sts_mem.c` | ✅ 0x80 表、连续 GOAL 多圈跟踪、跟随桥接 |
+| 速度/扭矩单位 | `sts_mem.c` | ✅ raw×(360/4096) °/s，encode_load |
 | I2C/UART 并发 | `bap_i2c.c` | ✅ 已去掉 `__disable_irq` |
 | main 集成 | `main.c` | ✅ `sts_mem_control_active` + `DEBUG_JUSTFLOAT` |
-| Flash EPROM 持久化 | — | ❌ 未做（曾试 @0x0800FC00 后回退） |
-| 校准 0x0B / OFFSET | — | ❌ 未做 |
+| Flash EPROM 持久化 | `sts_eeprom.c` + `sts_mem.c` | ✅ 已完成（`0x0800FC00`，魔数 `0x55AA`） |
+| 校准 0x0B / RESET 0x0A / OFFSET @0x1F | `sts_proto.c` + `sts_mem.c` | ✅ 已完成 |
+| 高频 GOAL 跟随 | `motor_follow.c` | 🔶 工作区已实现，实机验收待做 |
 | SYNC_READ/WRITE | — | ❌ 未做 |
 
-**当前待办：** 多机总线超时验收；最高速度饱和确认；Flash/校准合入。
+**当前待办：** 速度观测 VOFA 验收；motor_follow 流跟随验收；多机总线超时验收；最高速度饱和确认；Flash/校准断电重启验收。
 
 ---
 
@@ -41,7 +42,7 @@
 2. 维护 0x80 字节虚拟内存表
 3. 写控制寄存器 → 驱动 `motor_context` 电机
 4. 读反馈寄存器 → 返回编码器/ADC 实时数据
-5. EPROM 配置掉电保存（可选后期）
+5. EPROM 配置掉电保存（✅ `sts_eeprom.c` @0x0800FC00）
 
 ```text
 上位机
@@ -71,7 +72,7 @@ xuniduoji 已实现协议和内存层，**电机控制未接**，但分层思路
 |-----------|-----------|------|
 | `uart1.c` | `uart.c` + `bsp_uart.c` | 字节环、半双工 |
 | `protocol.c` | `sts_proto.c` | 帧解析、指令、回复 |
-| `servo_memory.c` | `sts_mem.c`（待写） | 内存表、Flash、反馈刷新 |
+| `servo_memory.c` | `sts_mem.c` + `sts_eeprom.c` | 内存表、Flash、反馈刷新 |
 | `Flash_IAP.c` | 可选 | Bootloader 升级（与 EPROM 不同用途） |
 | — | `motor.c` | 电机控制（servo 独有） |
 
@@ -381,7 +382,7 @@ GOAL_POS = 2048 → 内存中为 `s_mem[0x2A]=0x00, s_mem[0x2B]=0x08`
 
 | 寄存器 | 来源 |
 |--------|------|
-| PRESENT_POS 0x38 | `motor_angle_multi_degree` → deg_to_pos |
+| PRESENT_POS 0x38 | `(encoder_raw + offset) mod 4096` |
 | PRESENT_SPEED 0x3A | `motor_speed_degree` → degs_to_speed |
 | PRESENT_LOAD 0x3C | `motor_get_duty()` 编码 |
 | PRESENT_VOLT 0x3E | `motor_adc_v_bus` |
@@ -394,9 +395,11 @@ GOAL_POS = 2048 → 内存中为 `s_mem[0x2A]=0x00, s_mem[0x2B]=0x08`
 
 ---
 
-### 3.4 第四层：Flash EPROM 持久化（后期）
+### 3.4 第四层：Flash EPROM 持久化 ✅（2026-07-09）
 
-参考 xuniduoji `servo_memory.c` 的 `eeprom_load` / `eeprom_save`：
+**文件：** `sts_eeprom.c/h`（Flash FMC）+ `sts_mem.c`（调用时机）
+
+参考 xuniduoji `servo_memory.c` 的 `eeprom_load` / `eeprom_save`，servo 拆为独立模块：
 
 ```text
 Flash 页 0x0800FC00:
@@ -405,24 +408,30 @@ Flash 页 0x0800FC00:
   [2..] = s_mem[0x05 .. 0x27]
 ```
 
-**启动：**
+**API：**
 
 ```c
-void sts_mem_init(void)
-{
-    memset(s_mem, 0, sizeof(s_mem));
-    eeprom_load();
-    // 拷贝到 s_mem[0x05~0x27]
-    // 若无效 → 填 default_eprom[] → eeprom_save()
-    // 填版本区、出厂区、SRAM 控制默认值
-    sts_apply_pid_from_mem();
+void sts_eeprom_load(uint8_t *mem);
+void sts_eeprom_save(const uint8_t *mem);
+uint8_t sts_eeprom_is_eprom_addr(uint8_t addr);
+```
+
+**启动（sts_mem_init）：**
+
+```c
+sts_eeprom_load(s_mem);
+if (sts_mem_eprom_all_zero()) {
+    sts_mem_set_eprom_defaults();
+    sts_eeprom_save(s_mem);
 }
+// SRAM 控制区、EPROM_LOCK=1 每次复位初始化
+sts_apply_pid_from_mem();
 ```
 
 **写入 EPROM 且 EPROM_LOCK(0x37)==0：**
 
 ```c
-eeprom_save();  // 擦页 + 字写入 Flash
+sts_eeprom_save(s_mem);  // 擦页 + 字写入 Flash
 ```
 
 **锁：** `STS_ADDR_EPROM_LOCK == 1` 时拒绝写 0x05~0x27（xuniduoji 同）。
@@ -533,12 +542,30 @@ FF FF 01 05 03 2A 00 08 F7
 
 ---
 
-### 阶段 5：Flash 持久化
+### 阶段 5：Flash 持久化 ✅（2026-07-09 已完成）
 
-1. 选 Flash 页地址（如 `0x0800FC00`，避开程序区）
-2. 实现 `eeprom_load` / `eeprom_save`（照抄 xuniduoji 逻辑）
-3. EPROM_LOCK 写保护
-4. 断电重启后 ID/PID 等应保持
+1. Flash 页 `0x0800FC00`（与 xuniduoji 相同）
+2. 独立模块 `sts_eeprom.c`：`sts_eeprom_load` / `sts_eeprom_save`（逻辑同 xuniduoji `eeprom_load/save`）
+3. `sts_mem.c` 集成：启动加载 → 全零写默认 → `EPROM_LOCK` 写保护
+4. **待验收**：解锁 `0x37` 改 ID/PID → 断电重启应保持
+
+```text
+Flash 页 0x0800FC00:
+  [0x55][0xAA][s_mem[0x05]..s_mem[0x27]]  // 共 64B 页，实际数据 37B
+```
+
+与 xuniduoji 差异：servo 将 Flash FMC 操作拆到 `sts_eeprom.c`；xuniduoji 为 `servo_memory.c` 内 static 函数。
+
+### 阶段 5b：中位校准 ✅（2026-07-09）
+
+1. `POS_OFFSET` @ `0x1F`（EPROM 区，随 Flash 保存）
+2. `sts_mem_calibrate_midpoint(target)`：`offset = target - encoder_raw`
+3. `sts_proto.c` 处理 `RESET(0x0A)` / `CALIB(0x0B)`
+4. `TORQUE_SWITCH=128` 等效 CALIB(2048)
+
+```text
+CALIB 默认中点：FF FF 01 02 0B F1
+```
 
 ---
 
@@ -553,7 +580,8 @@ FF FF 01 05 03 2A 00 08 F7
 | RESTORE | 0x06 | 恢复出厂（除 ID） |
 | REBOOT | 0x08 | 软复位 |
 | JUMP_BOOT | 0x09 | 跳 Bootloader |
-| CALIB | 0x0B | 校准偏移 |
+| RESET | 0x0A | 清零 POS_OFFSET | ✅ |
+| CALIB | 0x0B | 中位校准 offset | ✅ |
 | SYNC_READ | 0x82 | 同步读 |
 | SYNC_WRITE | 0x83 | 同步写 |
 
@@ -616,7 +644,7 @@ FF FF 01 05 03 2A 00 08 F7
 | WRITE 无动作 | 未实现 `sts_on_write`；TORQUE_SWITCH=0 |
 | 自己发的进 RX 环 | 未 `tx_begin/end` |
 | case 里编译警告 | 变量声明需加 `{ }` |
-| GOAL_POS 角度不对 | 小端序；未处理 POS_OFFSET |
+| GOAL_POS 角度不对 | 小端序；检查 POS_OFFSET @0x1F 是否已校准 |
 | motor_test 抢控制 | 未判断 `sts_mem_control_active()` |
 
 ---

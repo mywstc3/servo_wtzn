@@ -2,10 +2,16 @@
 #include "sts_mem_map.h"
 #include "sts_eeprom.h"
 #include "servo_config.h"
+#include "encoder.h"
+#include "motor_follow.h"
 
 #include <string.h>
 
 extern volatile uint32_t g_control_tick;
+
+void motor_sync_target_to_actual(motor_context_t *ctx);
+void sts_mem_calibrate_midpoint(uint16_t target_raw);
+void sts_mem_reset_offset(void);
 
 #define STS_FEEDBACK_REFRESH_MS      50U
 
@@ -13,16 +19,17 @@ void motor_enable(void);
 void motor_disable(void);
 int16_t motor_get_duty(void);
 void speed_control_plan_reset(motor_control_context_t *ctx, float current_speed);
-void angle_control_plan_reset(motor_control_context_t *ctx, float current_angle);
+void angle_control_plan_reset(motor_control_context_t *ctx,
+    float current_angle, float current_speed);
 
-#define STS_POS_UNIT_DEG             0.087f
+#define STS_POS_UNIT_DEG             (360.0f / 4096.0f)  /* 与 encoder.c 一致，非协议近似 0.087 */
 #define STS_ACC_UNIT_DEGS2           8.7f
 #define STS_VOLT_UNIT_V              0.1f
 #define STS_CURR_UNIT_MA             6.5f
 
 /* EPROM PID 寄存器为 uint8，经缩放对齐 motor_init 浮点参数 */
 #define STS_PID_POS_D_SCALE          0.01f   /* POS_D: 5 -> Kd=0.05 */
-#define STS_PID_SPEED_I_SCALE        0.1f    /* SPEED_I: 5 -> Ki=0.5 */
+#define STS_PID_SPEED_I_SCALE        0.01f    /* SPEED_I: 10 -> Ki=0.1 */
 
 #define STS_ERR_INPUT_VOLTAGE_LOW    0x01U
 #define STS_ERR_OVERCURRENT          0x02U
@@ -31,12 +38,16 @@ void angle_control_plan_reset(motor_control_context_t *ctx, float current_angle)
 
 #define STS_LOAD_DUTY_MAX            3599
 #define STS_LOAD_DIR_BIT             0x0400U
+#define STS_SPEED_DIR_BIT            0x8000U /* STS 速度：bit15 方向，低 15 位幅值 */
 
 static uint8_t s_mem[STS_MEM_SIZE];
 static uint8_t s_last_error;
 static uint8_t s_control_active;
 static uint8_t s_magnet_ok = 1U;
 static uint32_t s_feedback_last_tick;
+static int16_t s_last_goal_sts = -1;
+static float s_goal_multi_angle;
+static uint8_t s_goal_track_valid;
 
 static void put_u16_le(uint8_t addr, uint16_t value)
 {
@@ -52,6 +63,94 @@ static uint16_t get_u16_le(uint8_t addr)
 static float sts_absf(float v)
 {
     return (v >= 0.0f) ? v : -v;
+}
+
+static int16_t sts_get_pos_offset_raw(void)
+{
+    return (int16_t)get_u16_le(STS_ADDR_POS_OFFSET_L);
+}
+
+static uint16_t sts_raw_to_present_pos(uint16_t encoder_raw)
+{
+    int32_t pos = (int32_t)encoder_raw + (int32_t)sts_get_pos_offset_raw();
+
+    while (pos < 0) {
+        pos += 4096;
+    }
+    while (pos >= 4096) {
+        pos -= 4096;
+    }
+    return (uint16_t)pos;
+}
+
+static int32_t sts_shortest_raw_delta(int32_t from_raw, int32_t to_raw)
+{
+    int32_t delta = to_raw - from_raw;
+
+    while (delta > 2048) {
+        delta -= 4096;
+    }
+    while (delta < -2048) {
+        delta += 4096;
+    }
+    return delta;
+}
+
+static void sts_goal_track_reset(void)
+{
+    s_last_goal_sts = -1;
+    s_goal_multi_angle = 0.0f;
+    s_goal_track_valid = 0U;
+}
+
+static float sts_goal_to_target_angle(int16_t goal_raw)
+{
+    float cur = motor_context.sensor.motor_angle_multi_degree;
+    int32_t delta;
+
+    if (s_goal_track_valid == 0U) {
+        uint16_t enc_raw = motor_context.sensor.motor_encoder_raw_u16;
+        int32_t present = (int32_t)sts_raw_to_present_pos(enc_raw);
+
+        delta = sts_shortest_raw_delta(present, (int32_t)goal_raw);
+        s_goal_multi_angle = cur + (float)delta * STS_POS_UNIT_DEG;
+        s_goal_track_valid = 1U;
+    } else {
+        /* 连续 GOAL：按 STS 寄存器差值累计多圈，避免 0→4090 被折成反向 6 格 */
+        delta = (int32_t)goal_raw - (int32_t)s_last_goal_sts;
+        s_goal_multi_angle += (float)delta * STS_POS_UNIT_DEG;
+    }
+
+    s_last_goal_sts = goal_raw;
+    return s_goal_multi_angle;
+}
+
+static int16_t sts_deg_to_goal_raw(float deg)
+{
+    int32_t phys_raw = (int32_t)(deg / STS_POS_UNIT_DEG + 0.5f);
+    int32_t goal_raw;
+
+    while (phys_raw < 0) {
+        phys_raw += 4096;
+    }
+    while (phys_raw >= 4096) {
+        phys_raw -= 4096;
+    }
+    goal_raw = phys_raw + (int32_t)sts_get_pos_offset_raw();
+    while (goal_raw < 0) {
+        goal_raw += 4096;
+    }
+    while (goal_raw >= 4096) {
+        goal_raw -= 4096;
+    }
+    return (int16_t)goal_raw;
+}
+
+static void sts_eprom_save_if_unlocked(void)
+{
+    if (s_mem[STS_ADDR_EPROM_LOCK] == 0U) {
+        sts_eeprom_save(s_mem);
+    }
 }
 
 static int16_t sts_encode_load(int16_t duty)
@@ -74,36 +173,31 @@ static int16_t sts_encode_load(int16_t duty)
     return (int16_t)mag;
 }
 
-static float pos_to_deg(int16_t pos)
+/* STS 速度寄存器：sign-magnitude，非 int16 补码（位15=方向） */
+static float speed_raw_to_degs(uint16_t raw)
 {
-    return (float)pos * STS_POS_UNIT_DEG;
+    float mag = (float)(raw & 0x7FFFU) * STS_POS_UNIT_DEG;
+
+    if ((raw & STS_SPEED_DIR_BIT) != 0U) {
+        return -mag;
+    }
+    return mag;
 }
 
-static int16_t deg_to_pos(float deg)
+static uint16_t degs_to_speed_raw(float deg_per_sec)
 {
-    float q = deg / STS_POS_UNIT_DEG;
+    float abs_deg = (deg_per_sec >= 0.0f) ? deg_per_sec : -deg_per_sec;
+    float q = abs_deg / STS_POS_UNIT_DEG;
+    uint16_t mag;
+
     if (q > 32767.0f) {
         q = 32767.0f;
-    } else if (q < -32768.0f) {
-        q = -32768.0f;
     }
-    return (int16_t)q;
-}
-
-static float speed_raw_to_degs(int16_t raw)
-{
-    return (float)raw * STS_POS_UNIT_DEG;
-}
-
-static int16_t degs_to_speed_raw(float deg_per_sec)
-{
-    float q = deg_per_sec / STS_POS_UNIT_DEG;
-    if (q > 32767.0f) {
-        q = 32767.0f;
-    } else if (q < -32768.0f) {
-        q = -32768.0f;
+    mag = (uint16_t)q;
+    if (deg_per_sec < 0.0f) {
+        mag |= STS_SPEED_DIR_BIT;
     }
-    return (int16_t)q;
+    return mag;
 }
 
 static void sts_apply_pid_from_mem(void)
@@ -131,9 +225,9 @@ static void sts_mem_set_eprom_defaults(void)
     s_mem[STS_ADDR_POS_P] = 5U;
     s_mem[STS_ADDR_POS_D] = 5U;
     s_mem[STS_ADDR_POS_I] = 0U;
-    put_u16_le(STS_ADDR_MIN_START_FORCE_L, 800U);
-    s_mem[STS_ADDR_SPEED_P] = 10U;
-    s_mem[STS_ADDR_SPEED_I] = 5U;
+    put_u16_le(STS_ADDR_MIN_START_FORCE_L, 150U);
+    s_mem[STS_ADDR_SPEED_P] = 3U;
+    s_mem[STS_ADDR_SPEED_I] = 10U;
 }
 
 static uint8_t sts_mem_eprom_all_zero(void)
@@ -189,6 +283,10 @@ static void sts_on_write(uint8_t addr, uint8_t len)
         uint8_t sw = s_mem[STS_ADDR_TORQUE_SWITCH];
         if (sw == 0U) {
             motor_disable();
+        } else if (sw == STS_TORQUE_SW_CALIB) {
+            sts_mem_calibrate_midpoint(STS_POS_MIDPOINT_RAW);
+            s_mem[STS_ADDR_TORQUE_SWITCH] = 1U;
+            motor_enable();
         } else {
             motor_enable();
         }
@@ -196,7 +294,7 @@ static void sts_on_write(uint8_t addr, uint8_t len)
     }
 
     if (sts_range_hit(addr, len, STS_ADDR_RUN_SPEED_L, 2U)) {
-        int16_t raw = (int16_t)get_u16_le(STS_ADDR_RUN_SPEED_L);
+        uint16_t raw = get_u16_le(STS_ADDR_RUN_SPEED_L);
         motor_context.control.mode = motor_control_mode_speed_torque;
         motor_context.control.target_speed = speed_raw_to_degs(raw);
         motor_context.control.target_a_speed = (float)s_mem[STS_ADDR_GOAL_ACC] * STS_ACC_UNIT_DEGS2;
@@ -206,19 +304,36 @@ static void sts_on_write(uint8_t addr, uint8_t len)
 
     if (sts_range_hit(addr, len, STS_ADDR_GOAL_POS_L, 2U)) {
         int16_t raw = (int16_t)get_u16_le(STS_ADDR_GOAL_POS_L);
+        float new_target;
+        float inherit_speed;
+
+        new_target = sts_goal_to_target_angle(raw);
         motor_context.control.mode = motor_control_mode_position_speed_torque;
-        motor_context.control.target_angle = pos_to_deg(raw);
-        motor_context.control.target_speed =
-            sts_absf(speed_raw_to_degs((int16_t)get_u16_le(STS_ADDR_RUN_SPEED_L)));
-        if (motor_context.control.target_speed < 1.0f) {
-            motor_context.control.target_speed = 180.0f;
-        }
         motor_context.control.target_a_speed = (float)s_mem[STS_ADDR_GOAL_ACC] * STS_ACC_UNIT_DEGS2;
         if (motor_context.control.target_a_speed <= 0.0f) {
             motor_context.control.target_a_speed = 1000.0f;
         }
-        angle_control_plan_reset(&motor_context.control, motor_context.sensor.motor_angle_multi_degree);
-        s_control_active = 1U;
+
+        if (motor_follow_on_goal_pos(&motor_context.control,
+                new_target,
+                motor_context.sensor.motor_speed_degree) != 0U) {
+            s_control_active = 1U;
+        } else {
+            motor_context.control.target_angle = new_target;
+            motor_context.control.target_speed =
+                sts_absf(speed_raw_to_degs(get_u16_le(STS_ADDR_RUN_SPEED_L)));
+            if (motor_context.control.target_speed < 1.0f) {
+                motor_context.control.target_speed = 90.0f;
+            }
+            inherit_speed = motor_context.control.plan_speed;
+            if (sts_absf(inherit_speed) < 1.0f) {
+                inherit_speed = motor_context.sensor.motor_speed_degree;
+            }
+            angle_control_plan_reset(&motor_context.control,
+                motor_context.sensor.motor_angle_multi_degree,
+                inherit_speed);
+            s_control_active = 1U;
+        }
     }
 
     if (sts_range_hit(addr, len, STS_ADDR_PWM_OPEN_SPEED_L, 2U)) {
@@ -261,7 +376,7 @@ void sts_mem_init(void)
     }
 
     s_mem[STS_ADDR_TORQUE_SWITCH] = 1U;
-    s_mem[STS_ADDR_GOAL_ACC] = 80U;
+    s_mem[STS_ADDR_GOAL_ACC] = 100U;
     put_u16_le(STS_ADDR_GOAL_POS_L, 2048U);
     put_u16_le(STS_ADDR_RUN_SPEED_L, 0U);
     put_u16_le(STS_ADDR_TORQUE_LIMIT_L, 1000U);
@@ -271,6 +386,7 @@ void sts_mem_init(void)
     s_control_active = 0U;
     s_magnet_ok = 1U;
     s_feedback_last_tick = 0U;
+    sts_goal_track_reset();
     sts_apply_pid_from_mem();
     sts_mem_refresh_feedback();
 }
@@ -289,20 +405,22 @@ void sts_mem_poll(void)
 void sts_mem_refresh_feedback(void)
 {
     int16_t pos_raw;
-    int16_t speed_raw;
-    int16_t goal_raw;
+    uint16_t speed_raw;
     int16_t load_raw;
     uint8_t status = 0U;
+    uint16_t enc_raw;
 
-    pos_raw = deg_to_pos(motor_context.sensor.motor_angle_multi_degree);
-    /* PRESENT_SPEED 反馈为绝对值，方向由 RUN_SPEED 命令符号表示 */
-    speed_raw = degs_to_speed_raw(sts_absf(motor_context.sensor.motor_speed_degree));
-    goal_raw = deg_to_pos(motor_context.control.target_angle);
-    load_raw = sts_encode_load(motor_get_duty());
+    enc_raw = motor_context.sensor.motor_encoder_raw_u16;
+    pos_raw = (int16_t)sts_raw_to_present_pos(enc_raw);
+    /* PRESENT_SPEED：幅值 + bit15 方向（飞特 sign-magnitude） */
+    speed_raw = degs_to_speed_raw(motor_context.sensor.motor_speed_degree);
+    /* PRESENT_LOAD：上报方向与内部 duty 取反，便于与上位机/速度同号约定对齐 */
+    load_raw = sts_encode_load((int16_t)(-motor_get_duty()));
 
     put_u16_le(STS_ADDR_PRESENT_POS_L, (uint16_t)pos_raw);
-    put_u16_le(STS_ADDR_PRESENT_SPEED_L, (uint16_t)speed_raw);
-    put_u16_le(STS_ADDR_GOAL_POS_FB_L, (uint16_t)goal_raw);
+    put_u16_le(STS_ADDR_PRESENT_SPEED_L, speed_raw);
+    put_u16_le(STS_ADDR_GOAL_POS_FB_L,
+        (uint16_t)sts_deg_to_goal_raw(motor_context.control.target_angle));
     put_u16_le(STS_ADDR_PRESENT_LOAD_L, (uint16_t)load_raw);
 
     s_mem[STS_ADDR_PRESENT_VOLT] =
@@ -410,4 +528,31 @@ uint16_t sts_mem_get_min_start_force(void)
 void sts_mem_set_magnet_ok(uint8_t ok)
 {
     s_magnet_ok = (ok != 0U) ? 1U : 0U;
+}
+
+void sts_mem_calibrate_midpoint(uint16_t target_raw)
+{
+    uint16_t raw;
+    int16_t offset;
+
+    s_last_error = 0U;
+    if (encoder_update() == 0U) {
+        s_last_error = 1U;
+        return;
+    }
+    raw = motor_context.sensor.motor_encoder_raw_u16;
+    offset = (int16_t)((int16_t)target_raw - (int16_t)raw);
+    put_u16_le(STS_ADDR_POS_OFFSET_L, (uint16_t)offset);
+    sts_eprom_save_if_unlocked();
+    sts_goal_track_reset();
+    motor_sync_target_to_actual(&motor_context);
+    sts_mem_refresh_feedback();
+}
+
+void sts_mem_reset_offset(void)
+{
+    put_u16_le(STS_ADDR_POS_OFFSET_L, 0U);
+    sts_eprom_save_if_unlocked();
+    sts_goal_track_reset();
+    sts_mem_refresh_feedback();
 }

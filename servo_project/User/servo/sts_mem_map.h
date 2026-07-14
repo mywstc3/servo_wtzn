@@ -30,6 +30,7 @@
 #define STS_ADDR_POS_D               0x16U
 #define STS_ADDR_POS_I               0x17U
 #define STS_ADDR_MIN_START_FORCE_L   0x18U   /* 最小启动力 2B，duty 0~3599 LE */
+#define STS_ADDR_POS_OFFSET_L        0x1FU   /* 位置偏置 2B，signed LE，加至原始角 */
 #define STS_ADDR_SPEED_P             0x25U
 #define STS_ADDR_SPEED_I             0x27U
 
@@ -57,5 +58,8 @@
 #define STS_ADDR_FACTORY_END         0x57U
 
 #define STS_ID_BROADCAST             0xFEU
+
+#define STS_TORQUE_SW_CALIB          128U    /* TORQUE_SWITCH：当前位置设为中点 */
+#define STS_POS_MIDPOINT_RAW         2048U   /* 中位校准默认目标 */
 
 #endif
