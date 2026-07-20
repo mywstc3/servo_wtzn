@@ -81,11 +81,25 @@ bool usart_getc_timeout(uint32_t usart, uint8_t *ch, uint32_t timeout_loops)
     return TRUE;
 }
 
+/*
+ * 连续发送：帧内只等 TBE，最后一字节再等 TC。
+ * 若每字节都等 TC，1Mbps 下字节间会出现约 2~3us 空闲（自研相对原厂偏慢的根因）。
+ */
 void bap_uart_send(uint8_t *data, uint16_t length)
 {
-    for (uint16_t i = 0U; i < length; i++) {
-        usart_putc(COMM_USART, data[i]);
+    uint16_t i;
+
+    if ((data == NULL) || (length == 0U)) {
+        return;
     }
+
+    for (i = 0U; i < length; i++) {
+        while (RESET == usart_flag_get(COMM_USART, USART_FLAG_TBE)) { }
+        usart_data_transmit(COMM_USART, data[i]);
+    }
+
+    while (RESET == usart_flag_get(COMM_USART, USART_FLAG_TC)) { }
+    usart_flag_clear(COMM_USART, USART_FLAG_TC);
 }
 
 uint8_t bap_uart_receive(uint8_t *data, uint16_t length)

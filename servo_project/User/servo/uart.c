@@ -122,7 +122,7 @@ void uart_comm_tx_begin(void)
 
 void uart_comm_tx_end(void)
 {
-    uart_delay_us(100U);
+    uart_delay_us(50U);
     uart_hw_clear_errors();
     s_uart_rx_blocked = 0U;
     uart_dbg_refresh();
