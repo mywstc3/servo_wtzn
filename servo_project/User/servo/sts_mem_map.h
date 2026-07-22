@@ -16,6 +16,9 @@
 #define STS_ADDR_SERVO_ID            0x05U
 #define STS_ADDR_BAUD                0x06U
 #define STS_ADDR_RETURN_DELAY        0x07U
+/* 飞特单位：每档 2μs；默认 7 → 14μs（相对 5 再 +2 档，对齐原厂约 32μs 空闲） */
+#define STS_RETURN_DELAY_UNIT_US     2U
+#define STS_RETURN_DELAY_DEFAULT     7U
 #define STS_ADDR_RETURN_LEVEL        0x08U
 #define STS_ADDR_ANGLE_MIN_L         0x09U
 #define STS_ADDR_ANGLE_MAX_L         0x0BU
@@ -57,9 +60,7 @@
 #define STS_ADDR_FACTORY_BASE        0x50U
 #define STS_ADDR_FACTORY_END         0x57U
 
-#define STS_ID_BROADCAST             0xFEU
-
 #define STS_TORQUE_SW_CALIB          128U    /* TORQUE_SWITCH：当前位置设为中点 */
-#define STS_POS_MIDPOINT_RAW         2048U   /* 中位校准默认目标 */
+#define STS_POS_MIDPOINT_RAW         2048    /* 中位校准默认目标 */
 
 #endif

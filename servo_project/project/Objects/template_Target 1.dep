@@ -712,7 +712,7 @@ I (..\User\servo\electricity.h)(0x6A46361F)
 I (..\User\servo\speed.h)(0x6A547B6E)
 I (..\User\servo\uart.h)(0x6A51CE9B)
 I (..\User\servo\motor_test.h)(0x6A465B49)
-I (..\User\servo\sts_mem.h)(0x6A51CE9B)
+I (..\User\servo\sts_mem.h)(0x6A5EEA40)
 I (..\User\bsp\bsp_i2c.h)(0x6A4654A9)
 F (..\User\systick.c)(0x6A4CD477)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m3 -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O1 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -I ../CMSIS -I ../Library/Include -I ../User-ID:/keil5.38/GigaDevice/GD32F1x0_DFP/3.2.1/Device/Include-D__UVISION_VERSION="541" -DGD32F1x0 -DGD32F130_150 -DUSE_STDPERIPH_DRIVER -DUSE_STDPERIPH_DRIVER -DGD32F130_150-o ./objects/systick.o -MMD)
 I (..\CMSIS\gd32f1x0.h)(0x61B9485A)
@@ -1040,7 +1040,7 @@ I (..\User\servo\speed.h)(0x6A547B6E)
 I (..\User\servo\encoder.h)(0x6A4F46EE)
 I (..\User\systick.h)(0x6A4CD477)
 I (..\User\servo\time.h)(0x6A465DBD)
-I (..\User\servo\sts_mem.h)(0x6A51CE9B)
+I (..\User\servo\sts_mem.h)(0x6A5EEA40)
 I (..\User\servo\motor_follow.h)(0x6A54321B)
 F (..\User\servo\motor_follow.c)(0x6A54321B)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m3 -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O1 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -I ../CMSIS -I ../Library/Include -I ../User-ID:/keil5.38/GigaDevice/GD32F1x0_DFP/3.2.1/Device/Include-D__UVISION_VERSION="541" -DGD32F1x0 -DGD32F130_150 -DUSE_STDPERIPH_DRIVER -DUSE_STDPERIPH_DRIVER -DGD32F130_150-o ./objects/motor_follow.o -MMD)
 I (..\User\servo\motor_follow.h)(0x6A54321B)
@@ -1142,7 +1142,7 @@ I (..\User\servo\motor.h)(0x6A54321B)
 I (..\User\servo\servo_config.h)(0x6A56144C)
 I (..\User\servo\encoder.h)(0x6A4F46EE)
 F (..\User\servo\time.h)(0x6A465DBD)()
-F (..\User\servo\uart.c)(0x6A5E2963)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m3 -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O1 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -I ../CMSIS -I ../Library/Include -I ../User-ID:/keil5.38/GigaDevice/GD32F1x0_DFP/3.2.1/Device/Include-D__UVISION_VERSION="541" -DGD32F1x0 -DGD32F130_150 -DUSE_STDPERIPH_DRIVER -DUSE_STDPERIPH_DRIVER -DGD32F130_150-o ./objects/uart.o -MMD)
+F (..\User\servo\uart.c)(0x6A5EEA40)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m3 -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O1 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -I ../CMSIS -I ../Library/Include -I ../User-ID:/keil5.38/GigaDevice/GD32F1x0_DFP/3.2.1/Device/Include-D__UVISION_VERSION="541" -DGD32F1x0 -DGD32F130_150 -DUSE_STDPERIPH_DRIVER -DUSE_STDPERIPH_DRIVER -DGD32F130_150-o ./objects/uart.o -MMD)
 I (..\User\bsp\bap_uart.h)(0x6A4CD477)
 I (..\CMSIS\gd32f1x0.h)(0x61B9485A)
 I (..\CMSIS\core_cm3.h)(0x6A40CFD1)
@@ -1173,7 +1173,9 @@ I (..\Library\Include\gd32f1x0_wwdgt.h)(0x61B9485B)
 I (..\Library\Include\gd32f1x0_misc.h)(0x61B9485B)
 I (..\Library\Include\gd32f1x0_tsi.h)(0x61B9485B)
 I (..\User\servo\uart.h)(0x6A51CE9B)
-I (..\User\servo\sts_proto.h)(0x6A51CE9B)
+I (..\User\servo\sts_proto.h)(0x6A5F0E15)
+I (..\User\servo\sts_mem.h)(0x6A5EEA40)
+I (..\User\servo\sts_mem_map.h)(0x6A5F0E4C)
 F (..\User\servo\uart.h)(0x6A51CE9B)()
 F (..\User\servo\data_send.c)(0x6A46361F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m3 -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O1 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -I ../CMSIS -I ../Library/Include -I ../User-ID:/keil5.38/GigaDevice/GD32F1x0_DFP/3.2.1/Device/Include-D__UVISION_VERSION="541" -DGD32F1x0 -DGD32F130_150 -DUSE_STDPERIPH_DRIVER -DUSE_STDPERIPH_DRIVER -DGD32F130_150-o ./objects/data_send.o -MMD)
 I (..\User\servo\data_send.h)(0x6A23E66A)
@@ -1304,7 +1306,7 @@ I (..\Library\Include\gd32f1x0_wwdgt.h)(0x61B9485B)
 I (..\Library\Include\gd32f1x0_misc.h)(0x61B9485B)
 I (..\Library\Include\gd32f1x0_tsi.h)(0x61B9485B)
 I (..\User\servo\servo_config.h)(0x6A56144C)
-I (..\User\servo\sts_mem.h)(0x6A51CE9B)
+I (..\User\servo\sts_mem.h)(0x6A5EEA40)
 F (..\User\servo\encoder.h)(0x6A4F46EE)()
 F (..\User\servo\speed.c)(0x6A54321B)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m3 -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O1 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -I ../CMSIS -I ../Library/Include -I ../User-ID:/keil5.38/GigaDevice/GD32F1x0_DFP/3.2.1/Device/Include-D__UVISION_VERSION="541" -DGD32F1x0 -DGD32F130_150 -DUSE_STDPERIPH_DRIVER -DUSE_STDPERIPH_DRIVER -DGD32F130_150-o ./objects/speed.o -MMD)
 I (..\User\servo\speed.h)(0x6A547B6E)
@@ -1374,15 +1376,15 @@ I (..\User\servo\servo_config.h)(0x6A56144C)
 I (..\User\servo\time.h)(0x6A465DBD)
 I (..\User\servo\motor_test.h)(0x6A465B49)
 F (..\User\servo\motor_test.h)(0x6A465B49)()
-F (..\User\servo\sts_proto.c)(0x6A51CE9B)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m3 -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O1 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -I ../CMSIS -I ../Library/Include -I ../User-ID:/keil5.38/GigaDevice/GD32F1x0_DFP/3.2.1/Device/Include-D__UVISION_VERSION="541" -DGD32F1x0 -DGD32F130_150 -DUSE_STDPERIPH_DRIVER -DUSE_STDPERIPH_DRIVER -DGD32F130_150-o ./objects/sts_proto.o -MMD)
-I (..\User\servo\sts_proto.h)(0x6A51CE9B)
+F (..\User\servo\sts_proto.c)(0x6A5F0E50)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m3 -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O1 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -I ../CMSIS -I ../Library/Include -I ../User-ID:/keil5.38/GigaDevice/GD32F1x0_DFP/3.2.1/Device/Include-D__UVISION_VERSION="541" -DGD32F1x0 -DGD32F130_150 -DUSE_STDPERIPH_DRIVER -DUSE_STDPERIPH_DRIVER -DGD32F130_150-o ./objects/sts_proto.o -MMD)
+I (..\User\servo\sts_proto.h)(0x6A5F0E15)
 I (..\User\servo\uart.h)(0x6A51CE9B)
-I (..\User\servo\sts_mem.h)(0x6A51CE9B)
-I (..\User\servo\sts_mem_map.h)(0x6A51CE9B)
-F (..\User\servo\sts_proto.h)(0x6A51CE9B)()
-F (..\User\servo\sts_mem.c)(0x6A56049E)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m3 -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O1 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -I ../CMSIS -I ../Library/Include -I ../User-ID:/keil5.38/GigaDevice/GD32F1x0_DFP/3.2.1/Device/Include-D__UVISION_VERSION="541" -DGD32F1x0 -DGD32F130_150 -DUSE_STDPERIPH_DRIVER -DUSE_STDPERIPH_DRIVER -DGD32F130_150-o ./objects/sts_mem.o -MMD)
-I (..\User\servo\sts_mem.h)(0x6A51CE9B)
-I (..\User\servo\sts_mem_map.h)(0x6A51CE9B)
+I (..\User\servo\sts_mem.h)(0x6A5EEA40)
+I (..\User\servo\sts_mem_map.h)(0x6A5F0E4C)
+F (..\User\servo\sts_proto.h)(0x6A5F0E15)()
+F (..\User\servo\sts_mem.c)(0x6A5EEA40)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m3 -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O1 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -I ../CMSIS -I ../Library/Include -I ../User-ID:/keil5.38/GigaDevice/GD32F1x0_DFP/3.2.1/Device/Include-D__UVISION_VERSION="541" -DGD32F1x0 -DGD32F130_150 -DUSE_STDPERIPH_DRIVER -DUSE_STDPERIPH_DRIVER -DGD32F130_150-o ./objects/sts_mem.o -MMD)
+I (..\User\servo\sts_mem.h)(0x6A5EEA40)
+I (..\User\servo\sts_mem_map.h)(0x6A5F0E4C)
 I (..\User\servo\sts_eeprom.h)(0x6A4F98C3)
 I (..\User\servo\servo_config.h)(0x6A56144C)
 I (..\CMSIS\gd32f1x0.h)(0x61B9485A)
@@ -1417,7 +1419,7 @@ I (..\User\servo\encoder.h)(0x6A4F46EE)
 I (..\User\servo\motor_follow.h)(0x6A54321B)
 F (..\User\servo\sts_eeprom.c)(0x6A4F98C5)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m3 -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O1 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -I ../CMSIS -I ../Library/Include -I ../User-ID:/keil5.38/GigaDevice/GD32F1x0_DFP/3.2.1/Device/Include-D__UVISION_VERSION="541" -DGD32F1x0 -DGD32F130_150 -DUSE_STDPERIPH_DRIVER -DUSE_STDPERIPH_DRIVER -DGD32F130_150-o ./objects/sts_eeprom.o -MMD)
 I (..\User\servo\sts_eeprom.h)(0x6A4F98C3)
-I (..\User\servo\sts_mem_map.h)(0x6A51CE9B)
+I (..\User\servo\sts_mem_map.h)(0x6A5F0E4C)
 I (..\Library\Include\gd32f1x0_fmc.h)(0x61B9485B)
 I (..\CMSIS\gd32f1x0.h)(0x61B9485A)
 I (..\CMSIS\core_cm3.h)(0x6A40CFD1)
@@ -1447,5 +1449,5 @@ I (..\Library\Include\gd32f1x0_wwdgt.h)(0x61B9485B)
 I (..\Library\Include\gd32f1x0_misc.h)(0x61B9485B)
 I (..\Library\Include\gd32f1x0_tsi.h)(0x61B9485B)
 F (..\User\servo\sts_eeprom.h)(0x6A4F98C3)()
-F (..\User\servo\sts_mem.h)(0x6A51CE9B)()
-F (..\User\servo\sts_mem_map.h)(0x6A51CE9B)()
+F (..\User\servo\sts_mem.h)(0x6A5EEA40)()
+F (..\User\servo\sts_mem_map.h)(0x6A5F0E4C)()

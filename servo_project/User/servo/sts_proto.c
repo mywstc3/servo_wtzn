@@ -15,6 +15,8 @@ static uint8_t s_cs_buf[2U + STS_FRAME_DATA_MAX];
 static uint8_t s_read_buf[STS_FRAME_DATA_MAX];
 static uint8_t s_read_tx[STS_FRAME_DATA_MAX + 6U];
 
+static void sts_proto_process_one_frame(const sts_frame_t *frame);
+
 static void sts_frame_reset(sts_frame_t *frame)
 {
     frame->frame_state = sts_frame_state_header1;
@@ -80,9 +82,14 @@ static uint8_t sts_rx_frame_ring_push(const sts_frame_t *frame)
 
 static void sts_rx_assemble_finish(void)
 {
+    /*
+     * 方案 A：校验通过后当场 process + uart_comm_tx（对齐虚拟舵机成帧即发）。
+     * 入环仅供 Keil Watch 观察，不再经 poll 二次 process。
+     */
     g_sts_rx_assemble.checksum_ok = sts_frame_verify(&g_sts_rx_assemble);
     if (g_sts_rx_assemble.checksum_ok != 0U) {
         g_sts_rx_assemble.frame_state = sts_frame_state_ready;
+        sts_proto_process_one_frame(&g_sts_rx_assemble);
         (void)sts_rx_frame_ring_push(&g_sts_rx_assemble);
     }
     sts_frame_reset(&g_sts_rx_assemble);
@@ -124,31 +131,10 @@ void sts_proto_rx_frame_group(uint8_t byte)
         break;
 
     case sts_frame_state_id:
-        if (byte == sts_mem_get_servo_id() || byte == STS_ID_BROADCAST) {
-            rx->id = byte;
-            rx->frame_state = sts_frame_state_length;
-        } else {
-            /* 非本机 ID：进入丢弃态，按 LENGTH 跳过整帧剩余字节 */
-            rx->frame_state = sts_frame_state_discard;
-            rx->length = 0U;
-            rx->data_idx = 0U;
-        }
-        break;
-
-    case sts_frame_state_discard:
-        if (rx->length == 0U) {
-            if (byte < 2U || byte >= STS_FRAME_DATA_MAX) {
-                sts_frame_reset(rx);
-            } else {
-                rx->length = byte;
-                rx->data_idx = 0U;
-            }
-        } else {
-            rx->data_idx++;
-            if (rx->data_idx >= rx->length) {
-                sts_frame_reset(rx);
-            }
-        }
+        /* 与虚拟舵机一致：先收齐任意 ID 整帧，process 时再过滤本机/广播。
+         * 多机总线上若在 ID 字节就 discard，易被他机应答打乱计数而失步。 */
+        rx->id = byte;
+        rx->frame_state = sts_frame_state_length;
         break;
 
     case sts_frame_state_length:
@@ -215,7 +201,8 @@ static void sts_proto_process_one_frame(const sts_frame_t *frame)
     }
 
     inst = frame->data[0];
-    need_rsp = (uint8_t)((frame->id != STS_ID_BROADCAST) || (inst == STS_INST_PING));
+    /* 广播 0xFE：不应答（对齐虚拟舵机；多机同时回会造成总线冲突） */
+    need_rsp = (uint8_t)(frame->id != STS_ID_BROADCAST);
     id_rsp = (frame->id == STS_ID_BROADCAST) ? sts_mem_get_servo_id() : frame->id;
 
     if (inst == STS_INST_PING) {
@@ -334,21 +321,12 @@ static void sts_proto_process_one_frame(const sts_frame_t *frame)
     }
 }
 
-static void sts_proto_process_frames(void)
-{
-    sts_frame_t frame;
-
-    while (sts_proto_rx_frame_pop(&frame) != 0U) {
-        sts_proto_process_one_frame(&frame);
-    }
-}
-
 void sts_proto_poll(void)
 {
     uint8_t byte;
 
+    /* 成帧校验通过后已在 sts_rx_assemble_finish 内当场应答 */
     while (uart_rx_pop(&byte) != 0U) {
         sts_proto_rx_frame_group(byte);
     }
-    sts_proto_process_frames();
 }

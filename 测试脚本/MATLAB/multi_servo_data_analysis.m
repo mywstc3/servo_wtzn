@@ -1,6 +1,5 @@
-%% 四组单机 UART 时序对比：自研旧版 / 改版后 / 原厂 / 虚拟舵机
-% 数据格式（逻辑分析仪 decoder 导出）：
-%   Id, Time[ns], 0:UART: RX/TX
+%% 改版 2.0 多机 vs 原厂多机 UART 时序对比
+% 数据格式：Id, Time[ns], 0:UART: RX/TX
 
 clear; clc; close all;
 
@@ -12,51 +11,41 @@ try
 catch
 end
 
-fileOld  = fullfile(dataDir, '第二次单机测试数据--260720-115643.csv');
-fileFix  = fullfile(dataDir, '改版后单机测试数据--260720-214407.csv');
-fileOem  = fullfile(dataDir, '单机原厂测试数据--260720-195540.csv');
-fileVirt = fullfile(dataDir, '单机虚拟舵机测试数据--260720-201735.csv');
+fileNew = fullfile(dataDir, '改版2.0多机测试数据--260721-103751.csv');
+fileOem = fullfile(dataDir, '原厂多机测试数据--260721-104538.csv');
 
-%% ---------- 读取 ----------
-oldData  = readUartCsv(fileOld);
-fixData  = readUartCsv(fileFix);
-oemData  = readUartCsv(fileOem);
-virtData = readUartCsv(fileVirt);
+%% ---------- 读取 / 清洗 ----------
+newData = readUartCsv(fileNew);
+oemData = readUartCsv(fileOem);
 
-%% ---------- 清洗 ----------
 cleanDir = fullfile(dataDir, 'cleaned');
 if ~isfolder(cleanDir)
     mkdir(cleanDir);
 end
 
-oldClean  = cleanUartIntervals(oldData);
-fixClean  = cleanUartIntervals(fixData);
-oemClean  = cleanUartIntervals(oemData);
-virtClean = cleanUartIntervals(virtData);
+newClean = cleanUartIntervals(newData);
+oemClean = cleanUartIntervals(oemData);
 
-fprintf('\n清洗结果:\n  %s\n  %s\n  %s\n  %s\n', ...
-    writeUartDeltaCsv(oldClean, cleanDir), ...
-    writeUartDeltaCsv(fixClean, cleanDir), ...
-    writeUartDeltaCsv(oemClean, cleanDir), ...
-    writeUartDeltaCsv(virtClean, cleanDir));
+fprintf('\n清洗结果:\n  %s\n  %s\n', ...
+    writeUartDeltaCsv(newClean, cleanDir), ...
+    writeUartDeltaCsv(oemClean, cleanDir));
 
-%% ---------- 四组对齐 CSV ----------
-cmpOut = writeQuadDeltaCsv(oldClean, fixClean, oemClean, virtClean, cleanDir);
-fprintf('四组对比结果:\n  %s\n', cmpOut);
+% Diff = 改版 - 原厂（>0 表示改版该位置间隔更长）
+cmpOut = writePairDeltaCsv(newClean, oemClean, cleanDir, ...
+    'fix2_multi_vs_oem_multi_delta_compare.csv');
+fprintf('对比结果:\n  %s\n', cmpOut);
 
 %% ---------- 摘要 ----------
-printUartSummary('自研旧版', oldClean);
-printUartSummary('自研改版', fixClean);
-printUartSummary('原厂单机', oemClean);
-printUartSummary('虚拟舵机', virtClean);
-printQuadSummary(oldClean, fixClean, oemClean, virtClean);
+printUartSummary('改版2.0多机', newClean);
+printUartSummary('原厂多机', oemClean);
+printPairSummary(newClean, oemClean, '改版2.0多机', '原厂多机');
 
 %% ---------- 图像 ----------
 figDir = fullfile(cleanDir, 'figures');
 if ~isfolder(figDir)
     mkdir(figDir);
 end
-plotQuadFigures(oldClean, fixClean, oemClean, virtClean, figDir);
+plotPairFigures(newClean, oemClean, figDir, 'Fix2.0-Multi', 'OEM-Multi', 'fix2_multi_vs_oem_multi');
 fprintf('\n对比图已写入:\n  %s\n', figDir);
 
 %% ========================================================================
@@ -128,21 +117,24 @@ function outPath = writeUartDeltaCsv(data, outDir)
     end
 end
 
-function outPath = writeQuadDeltaCsv(oldD, fixD, oem, virt, outDir)
+function outPath = writePairDeltaCsv(a, b, outDir, fileName)
+%WRITEPAIRDELTACSV Diff = a - b（第一组减第二组）
     if ~isfolder(outDir), mkdir(outDir); end
-    n = min([oldD.n, fixD.n, oem.n, virt.n]);
-    outPath = absPath(fullfile(outDir, 'old_fix_oem_virt_delta_compare.csv'));
+    n = min(a.n, b.n);
+    if a.n ~= b.n
+        warning('字节数不同：A=%d B=%d，按前 %d 行对齐', a.n, b.n, n);
+    end
+    outPath = absPath(fullfile(outDir, fileName));
     [fid, outPath] = openWriteFid(outPath);
     cleaner = onCleanup(@() fclose(fid)); %#ok<NASGU>
-    fprintf(fid, ['Id,OldHex,FixHex,OemHex,VirtHex,' ...
-        'OldDelta[ns],FixDelta[ns],OemDelta[ns],VirtDelta[ns],' ...
-        'FixMinusOld[ns],OemMinusFix[ns],VirtMinusFix[ns]\n']);
+    fprintf(fid, ['Id,AHex,BHex,ADelta[ns],BDelta[ns],' ...
+        'AMinusB[ns],SameByte\n']);
     for i = 1:n
-        dOld = oldD.delta_ns(i); dFix = fixD.delta_ns(i);
-        dOem = oem.delta_ns(i);  dVirt = virt.delta_ns(i);
-        fprintf(fid, '%d,%s,%s,%s,%s,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n', ...
-            i, oldD.hex{i}, fixD.hex{i}, oem.hex{i}, virt.hex{i}, ...
-            dOld, dFix, dOem, dVirt, dFix - dOld, dOem - dFix, dVirt - dFix);
+        dA = a.delta_ns(i);
+        dB = b.delta_ns(i);
+        fprintf(fid, '%d,%s,%s,%.2f,%.2f,%.2f,%d\n', ...
+            i, a.hex{i}, b.hex{i}, dA, dB, dA - dB, ...
+            strcmp(a.hex{i}, b.hex{i}));
     end
 end
 
@@ -181,29 +173,22 @@ function printUartSummary(tag, data)
     fprintf('  前 16 字节 : %s\n', sprintf('%02X ', data.byte(1:min(16, data.n))));
 end
 
-function printQuadSummary(oldD, fixD, oem, virt)
-    n = min([oldD.n, fixD.n, oem.n, virt.n]);
-    fprintf('\n===== 四组对齐摘要 (n=%d) =====\n', n);
-    printTurnStats('旧版 TX->RX', extractTurnaroundsUs(oldD));
-    printTurnStats('改版 TX->RX', extractTurnaroundsUs(fixD));
-    printTurnStats('原厂 TX->RX', extractTurnaroundsUs(oem));
-    printTurnStats('虚拟 TX->RX', extractTurnaroundsUs(virt));
+function printPairSummary(a, b, nameA, nameB)
+    n = min(a.n, b.n);
+    fprintf('\n===== %s vs %s (n=%d) =====\n', nameA, nameB, n);
+    printTurnStats([nameA ' TX->RX'], extractTurnaroundsUs(a));
+    printTurnStats([nameB ' TX->RX'], extractTurnaroundsUs(b));
+    printRespIntra(nameA, a);
+    printRespIntra(nameB, b);
 
-    mask = (oldD.delta_us(1:n) < 20) & (fixD.delta_us(1:n) < 20) & ...
-        (oem.delta_us(1:n) < 20) & (virt.delta_us(1:n) < 20) & ((1:n)' > 1);
-    if any(mask)
-        fprintf('  帧内字节间隔us (<20):\n');
-        fprintf('    旧版 median=%.2f\n', median(oldD.delta_us(mask)));
-        fprintf('    改版 median=%.2f\n', median(fixD.delta_us(mask)));
-        fprintf('    原厂 median=%.2f\n', median(oem.delta_us(mask)));
-        fprintf('    虚拟 median=%.2f\n', median(virt.delta_us(mask)));
+    tA = extractTurnaroundsUs(a);
+    tB = extractTurnaroundsUs(b);
+    m = min(numel(tA), numel(tB));
+    if m > 0
+        d = tA(1:m) - tB(1:m);
+        fprintf('  转化差(%s-%s) us: p50=%.2f mean=%.2f\n', ...
+            nameA, nameB, median(d), mean(d));
     end
-
-    % 应答帧内间隔（更贴近波形结论）
-    printRespIntra('旧版', oldD);
-    printRespIntra('改版', fixD);
-    printRespIntra('原厂', oem);
-    printRespIntra('虚拟', virt);
 end
 
 function printRespIntra(tag, data)
@@ -230,119 +215,100 @@ function printTurnStats(tag, v)
         tag, numel(v), min(v), median(v), mean(v), max(v));
 end
 
-function plotQuadFigures(oldD, fixD, oem, virt, figDir)
-    n = min([oldD.n, fixD.n, oem.n, virt.n]);
+function plotPairFigures(a, b, figDir, labelA, labelB, filePrefix)
+    n = min(a.n, b.n);
     ids = (1:n)';
-    dOld = oldD.delta_us(1:n);
-    dFix = fixD.delta_us(1:n);
-    dOem = oem.delta_us(1:n);
-    dVirt = virt.delta_us(1:n);
+    dA = a.delta_us(1:n);
+    dB = b.delta_us(1:n);
+    cA = [0.12 0.47 0.71];
+    cB = [0.84 0.15 0.16];
 
-    cOld  = [0.50 0.50 0.50];  % gray old
-    cFix  = [0.12 0.47 0.71];  % blue fixed
-    cOem  = [0.84 0.15 0.16];  % red oem
-    cVirt = [0.17 0.63 0.17];  % green virt
-
-    % 1 overview
-    fig = figure('Name', 'overview_4', 'Color', 'w', 'Visible', 'on');
-    set(fig, 'Position', [60 60 1100 780]);
+    fig = figure('Name', ['overview_' filePrefix], 'Color', 'w', 'Visible', 'on');
+    set(fig, 'Position', [80 80 1100 720]);
     subplot(3, 1, 1);
-    semilogy(ids(2:end), dOld(2:end), 'Color', cOld, 'LineWidth', 0.7); hold on;
-    semilogy(ids(2:end), dFix(2:end), 'Color', cFix, 'LineWidth', 0.8);
-    semilogy(ids(2:end), dOem(2:end), 'Color', cOem, 'LineWidth', 0.8);
-    semilogy(ids(2:end), dVirt(2:end), 'Color', cVirt, 'LineWidth', 0.8);
+    semilogy(ids(2:end), dA(2:end), 'Color', cA, 'LineWidth', 0.8); hold on;
+    semilogy(ids(2:end), dB(2:end), 'Color', cB, 'LineWidth', 0.8);
     grid on; ylabel('Delta (us)');
-    title('Byte interval: Old / Fixed / OEM / Virtual');
-    legend({'Old', 'Fixed', 'OEM', 'Virtual'}, 'Location', 'northeast');
+    title(sprintf('Byte interval: %s vs %s (log y)', labelA, labelB));
+    legend({labelA, labelB}, 'Location', 'northeast');
 
     subplot(3, 1, 2);
-    d1 = dFix - dOld; mask = abs(d1) <= 1000;
-    plot(ids(mask), d1(mask), 'Color', cFix, 'LineWidth', 0.7); hold on;
+    dd = dA - dB; mask = abs(dd) <= 1000;
+    plot(ids(mask), dd(mask), 'Color', [0.17 0.63 0.17], 'LineWidth', 0.7); hold on;
     yline(0, 'Color', [0.3 0.3 0.3]);
-    grid on; ylabel('Diff (us)'); title('Fixed - Old (|Diff|<=1000)');
+    grid on; ylabel('Diff (us)');
+    title(sprintf('%s - %s (|Diff|<=1000 us)', labelA, labelB));
 
     subplot(3, 1, 3);
-    d2 = dFix - dOem; mask2 = abs(d2) <= 1000;
-    plot(ids(mask2), d2(mask2), 'Color', [0.90 0.45 0.05], 'LineWidth', 0.7); hold on;
+    plot(ids(2:end), dd(2:end), 'Color', [0.58 0.40 0.74], 'LineWidth', 0.7); hold on;
     yline(0, 'Color', [0.3 0.3 0.3]);
     grid on; ylabel('Diff (us)'); xlabel('Byte index');
-    title('Fixed - OEM (|Diff|<=1000)');
-    saveFig(fig, fullfile(figDir, '01_quad_overview.png'));
+    title(sprintf('%s - %s (full)', labelA, labelB));
+    saveFig(fig, fullfile(figDir, ['01_' filePrefix '_overview.png']));
 
-    % 2 intra
-    mask = (dOld < 20) & (dFix < 20) & (dOem < 20) & (dVirt < 20) & (ids > 1);
-    fig = figure('Name', 'intra_4', 'Color', 'w', 'Visible', 'on');
-    set(fig, 'Position', [80 80 1100 480]);
-    plot(ids(mask), dOld(mask), '-', 'Color', cOld, 'LineWidth', 0.6); hold on;
-    plot(ids(mask), dFix(mask), '-', 'Color', cFix, 'LineWidth', 0.8);
-    plot(ids(mask), dOem(mask), '-', 'Color', cOem, 'LineWidth', 0.8);
-    plot(ids(mask), dVirt(mask), '-', 'Color', cVirt, 'LineWidth', 0.8);
+    mask = (dA < 20) & (dB < 20) & (ids > 1);
+    fig = figure('Name', ['intra_' filePrefix], 'Color', 'w', 'Visible', 'on');
+    set(fig, 'Position', [100 100 1100 480]);
+    plot(ids(mask), dA(mask), '-', 'Color', cA, 'LineWidth', 0.8); hold on;
+    plot(ids(mask), dB(mask), '-', 'Color', cB, 'LineWidth', 0.8);
     grid on; ylabel('Delta (us)'); xlabel('Byte index');
     title('Intra-frame (<20 us)');
-    legend({'Old', 'Fixed', 'OEM', 'Virtual'}, 'Location', 'best');
-    saveFig(fig, fullfile(figDir, '02_quad_intra.png'));
+    legend({labelA, labelB}, 'Location', 'best');
+    saveFig(fig, fullfile(figDir, ['02_' filePrefix '_intra.png']));
 
-    % 3 turnaround
-    tOld = extractTurnaroundsUs(oldD);
-    tFix = extractTurnaroundsUs(fixD);
-    tOem = extractTurnaroundsUs(oem);
-    tVirt = extractTurnaroundsUs(virt);
-    m = min([numel(tOld), numel(tFix), numel(tOem), numel(tVirt)]);
+    tA = extractTurnaroundsUs(a);
+    tB = extractTurnaroundsUs(b);
+    m = min(numel(tA), numel(tB));
     x = (1:m)';
-    fig = figure('Name', 'turnaround_4', 'Color', 'w', 'Visible', 'on');
-    set(fig, 'Position', [100 80 1000 560]);
+    fig = figure('Name', ['turnaround_' filePrefix], 'Color', 'w', 'Visible', 'on');
+    set(fig, 'Position', [120 100 1000 560]);
     subplot(2, 1, 1);
-    plot(x, tOld(1:m), 'x-', 'Color', cOld, 'LineWidth', 1); hold on;
-    plot(x, tFix(1:m), 'o-', 'Color', cFix, 'LineWidth', 1);
-    plot(x, tOem(1:m), 's-', 'Color', cOem, 'LineWidth', 1);
-    plot(x, tVirt(1:m), 'd-', 'Color', cVirt, 'LineWidth', 1);
+    plot(x, tA(1:m), 'o-', 'Color', cA, 'LineWidth', 1); hold on;
+    plot(x, tB(1:m), 's-', 'Color', cB, 'LineWidth', 1);
     grid on; ylabel('Turnaround (us)');
-    title('TX->RX turnaround');
-    legend({'Old', 'Fixed', 'OEM', 'Virtual'}, 'Location', 'best');
+    title(sprintf('TX->RX turnaround: %s vs %s', labelA, labelB));
+    legend({labelA, labelB}, 'Location', 'best');
     subplot(2, 1, 2);
-    plot(x, tFix(1:m) - tOld(1:m), 'o-', 'Color', cFix, 'LineWidth', 1); hold on;
-    plot(x, tFix(1:m) - tOem(1:m), 's-', 'Color', [0.90 0.45 0.05], 'LineWidth', 1);
+    d = tA(1:m) - tB(1:m);
+    bar(x, d, 0.7, 'FaceColor', [0.90 0.45 0.05]); hold on;
     yline(0, 'Color', [0.3 0.3 0.3]);
     grid on; xlabel('Response index'); ylabel('Diff (us)');
-    title('Fixed vs Old / OEM');
-    legend({'Fixed-Old', 'Fixed-OEM'}, 'Location', 'best');
-    saveFig(fig, fullfile(figDir, '03_quad_turnaround.png'));
+    title(sprintf('Turnaround Diff = %s - %s', labelA, labelB));
+    saveFig(fig, fullfile(figDir, ['03_' filePrefix '_turnaround.png']));
 
-    % 4 bars
     labels = {'min', 'p50', 'mean', 'p95', 'max'};
-    sOld = localStats(tOld); sFix = localStats(tFix);
-    sOem = localStats(tOem); sVirt = localStats(tVirt);
-    fig = figure('Name', 'turnaround_bars_4', 'Color', 'w', 'Visible', 'on');
-    set(fig, 'Position', [120 100 900 420]);
-    xb = 1:numel(labels); w = 0.18;
-    bar(xb - 1.5*w, sOld, w, 'FaceColor', cOld); hold on;
-    bar(xb - 0.5*w, sFix, w, 'FaceColor', cFix);
-    bar(xb + 0.5*w, sOem, w, 'FaceColor', cOem);
-    bar(xb + 1.5*w, sVirt, w, 'FaceColor', cVirt);
-    set(gca, 'XTick', xb, 'XTickLabel', labels);
-    ylabel('us'); title('Turnaround summary');
-    legend({'Old', 'Fixed', 'OEM', 'Virtual'}, 'Location', 'northwest');
-    grid on;
-    saveFig(fig, fullfile(figDir, '04_quad_turnaround_bars.png'));
-
-    % 5 frame duration
-    [rqO, rsO] = frameDurationsUs(oldD);
-    [rqF, rsF] = frameDurationsUs(fixD);
-    [rqE, rsE] = frameDurationsUs(oem);
-    [rqV, rsV] = frameDurationsUs(virt);
-    fig = figure('Name', 'frame_dur_4', 'Color', 'w', 'Visible', 'on');
+    sA = localStats(tA); sB = localStats(tB);
+    fig = figure('Name', ['turnaround_bars_' filePrefix], 'Color', 'w', 'Visible', 'on');
     set(fig, 'Position', [140 120 780 400]);
-    vals = [median(rqO), median(rqF), median(rqE), median(rqV); ...
-            median(rsO), median(rsF), median(rsE), median(rsV)];
-    b = bar(vals);
-    b(1).FaceColor = cOld; b(2).FaceColor = cFix;
-    b(3).FaceColor = cOem; b(4).FaceColor = cVirt;
+    xb = 1:numel(labels); w = 0.35;
+    bar(xb - w/2, sA, w, 'FaceColor', cA); hold on;
+    bar(xb + w/2, sB, w, 'FaceColor', cB);
+    set(gca, 'XTick', xb, 'XTickLabel', labels);
+    ylabel('us');
+    title(sprintf('Turnaround summary: %s vs %s', labelA, labelB));
+    legend({labelA, labelB}, 'Location', 'northwest');
+    grid on;
+    for i = 1:numel(labels)
+        text(xb(i) - w/2, sA(i), sprintf('%.1f', sA(i)), ...
+            'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom', 'FontSize', 8);
+        text(xb(i) + w/2, sB(i), sprintf('%.1f', sB(i)), ...
+            'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom', 'FontSize', 8);
+    end
+    saveFig(fig, fullfile(figDir, ['04_' filePrefix '_turnaround_bars.png']));
+
+    [rqA, rsA] = frameDurationsUs(a);
+    [rqB, rsB] = frameDurationsUs(b);
+    fig = figure('Name', ['frame_dur_' filePrefix], 'Color', 'w', 'Visible', 'on');
+    set(fig, 'Position', [160 140 720 400]);
+    vals = [median(rqA), median(rqB); median(rsA), median(rsB)];
+    bb = bar(vals);
+    bb(1).FaceColor = cA; bb(2).FaceColor = cB;
     set(gca, 'XTickLabel', {'Request', 'Response'});
     ylabel('Frame duration median (us)');
     title('Frame duration (intra)');
-    legend({'Old', 'Fixed', 'OEM', 'Virtual'}, 'Location', 'best');
+    legend({labelA, labelB}, 'Location', 'best');
     grid on;
-    saveFig(fig, fullfile(figDir, '05_quad_frame_duration.png'));
+    saveFig(fig, fullfile(figDir, ['05_' filePrefix '_frame_duration.png']));
 end
 
 function [reqDur, respDur] = frameDurationsUs(data)

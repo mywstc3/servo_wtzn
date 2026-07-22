@@ -215,6 +215,7 @@ static void sts_mem_set_eprom_defaults(void)
 {
     s_mem[STS_ADDR_SERVO_ID] = 1U;
     s_mem[STS_ADDR_BAUD] = 0U;
+    s_mem[STS_ADDR_RETURN_DELAY] = STS_RETURN_DELAY_DEFAULT;
     s_mem[STS_ADDR_RETURN_LEVEL] = 1U;
     put_u16_le(STS_ADDR_ANGLE_MIN_L, 0U);
     put_u16_le(STS_ADDR_ANGLE_MAX_L, 4095U);
@@ -373,6 +374,9 @@ void sts_mem_init(void)
     if (sts_mem_eprom_all_zero() != 0U) {
         sts_mem_set_eprom_defaults();
         sts_eeprom_save(s_mem);
+    } else if (s_mem[STS_ADDR_RETURN_DELAY] == 0U) {
+        /* 旧固件未写过 0x07：运行期补默认（不强制落盘，便于上位机改写含写 0） */
+        s_mem[STS_ADDR_RETURN_DELAY] = STS_RETURN_DELAY_DEFAULT;
     }
 
     s_mem[STS_ADDR_TORQUE_SWITCH] = 1U;
@@ -513,6 +517,11 @@ uint8_t sts_mem_get_error(void)
 uint8_t sts_mem_get_servo_id(void)
 {
     return s_mem[STS_ADDR_SERVO_ID];
+}
+
+uint8_t sts_mem_get_return_delay(void)
+{
+    return s_mem[STS_ADDR_RETURN_DELAY];
 }
 
 uint8_t sts_mem_control_active(void)

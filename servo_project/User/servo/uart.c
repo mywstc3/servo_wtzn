@@ -1,6 +1,8 @@
 #include "bsp/bap_uart.h"
 #include "uart.h"
 #include "sts_proto.h"
+#include "sts_mem.h"
+#include "sts_mem_map.h"
 
 uart_rx_ring_t g_uart_rx_ring;
 static volatile uint8_t s_uart_rx_blocked;
@@ -13,12 +15,25 @@ volatile uint32_t g_uart_dbg_blocked;
 volatile uint32_t g_uart_dbg_stat;
 volatile uint32_t g_uart_dbg_ctl0;
 
+/*
+ * 原先 us*72 次 NOP 按「每圈 1 周期」估算，实际每圈约 4 周期，
+ * 请求 100μs 会拖到约 400μs。用 DWT CYCCNT 按真实 CPU 周期延时。
+ */
 static void uart_delay_us(uint32_t us)
 {
-    uint32_t i;
+    uint32_t start;
+    uint32_t cycles;
 
-    for (i = 0U; i < (us * 72U); i++) {
-        __NOP();
+    if (us == 0U) {
+        return;
+    }
+
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+
+    cycles = us * (SystemCoreClock / 1000000U);
+    start = DWT->CYCCNT;
+    while ((DWT->CYCCNT - start) < cycles) {
     }
 }
 
@@ -122,7 +137,7 @@ void uart_comm_tx_begin(void)
 
 void uart_comm_tx_end(void)
 {
-    uart_delay_us(50U);
+    uart_delay_us(100U);
     uart_hw_clear_errors();
     s_uart_rx_blocked = 0U;
     uart_dbg_refresh();
@@ -130,6 +145,14 @@ void uart_comm_tx_end(void)
 
 void uart_comm_tx(uint8_t *data, uint8_t length)
 {
+    uint32_t delay_us =
+        (uint32_t)sts_mem_get_return_delay() * (uint32_t)STS_RETURN_DELAY_UNIT_US;
+
+    /* 应答前按 0x07 RETURN_DELAY 延时，给主机半双工 TX→RX 切换留空闲 */
+    if (delay_us != 0U) {
+        uart_delay_us(delay_us);
+    }
+
     uart_comm_tx_begin();
     bap_uart_send(data, length);
     uart_comm_tx_end();

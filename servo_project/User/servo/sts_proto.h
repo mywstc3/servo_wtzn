@@ -16,6 +16,8 @@
 #define STS_INST_RESET          0x0AU
 #define STS_INST_CALIB          0x0BU
 
+#define STS_ID_BROADCAST        0xFE
+
 typedef enum {
     sts_frame_state_idle = 0,
     sts_frame_state_header1,
@@ -23,7 +25,6 @@ typedef enum {
     sts_frame_state_id,
     sts_frame_state_length,
     sts_frame_state_data,
-    sts_frame_state_discard,
     sts_frame_state_ready,
 } sts_frame_state_t;
 
@@ -36,13 +37,13 @@ typedef struct {
     uint8_t data[STS_FRAME_DATA_MAX];
 } sts_frame_t;
 
-/* 已完成帧环形队列（Keil Watch: head/tail/count + slots[]） */
+/* 已完成帧环形队列（Keil Watch；热路径成帧后先应答再 push，仅供观察） */
 extern sts_frame_t g_sts_rx_frame[STS_RX_FRAME_CNT];
 extern volatile uint8_t g_sts_rx_frame_head;
 extern volatile uint8_t g_sts_rx_frame_tail;
 extern volatile uint8_t g_sts_rx_frame_count;
 
-/* 正在组帧的缓冲（字节状态机写入此处，完成后 push 进环） */
+/* 正在组帧的缓冲；收齐并校验通过后当场 process/应答 */
 extern sts_frame_t g_sts_rx_assemble;
 
 extern sts_frame_t g_sts_tx_frame[STS_RX_FRAME_CNT];
